@@ -1,0 +1,57 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Build JAR
+        run: ./gradlew clean bootJar
+
+      - name: Ensure remote directory
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: mkdir -p /home/ubuntu/app.jar
+
+      - name: Upload JAR
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "build/libs/*SNAPSHOT.jar"
+          target: "/home/ubuntu/app.jar/"
+
+      - name: Restart app
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          RDS_PASSWORD: ${{ secrets.RDS_PASSWORD }}
+          IG_SESSIONID: ${{ secrets.IG_SESSIONID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: RDS_PASSWORD,IG_SESSIONID,OPENAI_API_KEY
+          script: |
+            JAR_PATH=$(ls /home/ubuntu/app.jar/*SNAPSHOT.jar | grep -v plain | head -n 1)
+            sudo pkill -f "$(basename "$JAR_PATH")" || true
+            nohup env RDS_PASSWORD="$RDS_PASSWORD" IG_SESSIONID="$IG_SESSIONID" OPENAI_API_KEY="$OPENAI_API_KEY" \
+              java -jar "$JAR_PATH" > /home/ubuntu/app.log 2>&1 &

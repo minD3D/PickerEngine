@@ -1,0 +1,10 @@
+Extract 8-15 concise Korean keywords describing vibe, style, personality, and interests.
+Use adjectives or short phrases. Avoid generic words and proper nouns.
+Consider profile and recent post images along with the text content.
+Return JSON array only.
+
+Profile name: {{profile_name}}
+Profile bio: {{profile_bio}}
+Profile category: {{profile_category}}
+Post captions:
+{{post_captions}}

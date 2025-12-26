@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Instagram Keyword Debug</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0f1320;
+        --card: #171c2e;
+        --ink: #f7f2e7;
+        --muted: #b3b7c6;
+        --accent: #f2b880;
+        --accent-2: #7bdff2;
+        --danger: #ff8e8e;
+        --shadow: 0 18px 50px rgba(8, 10, 20, 0.55);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+        color: var(--ink);
+        background: radial-gradient(circle at 20% 20%, #27335a, transparent 55%),
+          radial-gradient(circle at 80% 0%, #24324a, transparent 50%),
+          linear-gradient(160deg, #0f1320 20%, #121a2b 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 48px 20px;
+      }
+
+      .frame {
+        width: min(1240px, 100%);
+        display: grid;
+        gap: 28px;
+        grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+      }
+
+      .panel {
+        background: var(--card);
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: var(--shadow);
+        position: relative;
+        overflow: hidden;
+        animation: slideUp 0.7s ease both;
+      }
+
+      .panel::after {
+        content: "";
+        position: absolute;
+        inset: auto -50% -80% -50%;
+        height: 160px;
+        background: linear-gradient(90deg, transparent, rgba(242, 184, 128, 0.2), transparent);
+        filter: blur(20px);
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(1.8rem, 2vw + 1.2rem, 2.6rem);
+      }
+
+      p {
+        margin: 0 0 18px;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      label {
+        display: block;
+        margin: 16px 0 6px;
+        font-weight: 600;
+      }
+
+      input,
+      select,
+      button,
+      textarea {
+        width: 100%;
+        border-radius: 14px;
+        border: 1px solid transparent;
+        background: #0f1425;
+        color: var(--ink);
+        padding: 12px 14px;
+        font-size: 1rem;
+        font-family: inherit;
+      }
+
+      input:focus,
+      select:focus,
+      textarea:focus {
+        outline: 2px solid rgba(123, 223, 242, 0.5);
+      }
+
+      button {
+        cursor: pointer;
+        background: linear-gradient(120deg, var(--accent), var(--accent-2));
+        color: #1d1b18;
+        font-weight: 700;
+        border: none;
+        margin-top: 18px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px rgba(242, 184, 128, 0.25);
+      }
+
+      .meta {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .result-card {
+        background: #0e1322;
+        border-radius: 18px;
+        padding: 18px;
+        min-height: 220px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .result-card h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .card-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        gap: 12px;
+      }
+
+      .copy-btn {
+        width: auto;
+        padding: 8px 14px;
+        border-radius: 999px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        background: rgba(247, 242, 231, 0.08);
+        color: var(--ink);
+        border: 1px solid rgba(247, 242, 231, 0.2);
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      .copy-btn:hover {
+        background: rgba(247, 242, 231, 0.18);
+        border-color: rgba(247, 242, 231, 0.4);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .chip {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(123, 223, 242, 0.12);
+        border: 1px solid rgba(123, 223, 242, 0.4);
+        font-size: 0.92rem;
+      }
+
+      .chip.alt {
+        background: rgba(242, 184, 128, 0.12);
+        border-color: rgba(242, 184, 128, 0.4);
+      }
+
+      .status {
+        margin-top: 14px;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: var(--danger);
+      }
+
+      .raw {
+        margin-top: 16px;
+        font-family: "Source Code Pro", ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.85rem;
+        background: #0b0f1a;
+        padding: 12px;
+        border-radius: 14px;
+        color: #cdd6f4;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      @keyframes slideUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 720px) {
+        body {
+          padding: 32px 16px;
+        }
+
+        .panel {
+          padding: 22px;
+        }
+
+        .frame {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <section class="panel">
+        <h1>Keyword Debug Console</h1>
+        <p>
+          Test prompt versions and see keyword/category output. Images are included automatically.
+        </p>
+        <label for="userId">Instagram Username</label>
+        <input id="userId" type="text" placeholder="e.g. minD3D" />
+
+        <label for="version">Prompt Version</label>
+        <select id="version"></select>
+
+        <label for="customVersion">Custom Version</label>
+        <input id="customVersion" type="text" placeholder="e.g. v3" />
+
+        <button id="runBtn">Run Extraction</button>
+        <div class="status meta" id="status"></div>
+      </section>
+
+      <section class="panel">
+        <div class="result-card">
+          <div class="card-header">
+            <h2>Keywords</h2>
+            <button class="copy-btn" data-copy="keywords">Copy</button>
+          </div>
+          <div class="chips" id="keywordChips"></div>
+        </div>
+        <div class="result-card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h2>Category</h2>
+            <button class="copy-btn" data-copy="category">Copy</button>
+          </div>
+          <div class="chips" id="categoryChips"></div>
+        </div>
+        <div class="result-card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h2>Prompt Template</h2>
+            <button class="copy-btn" data-copy="template">Copy</button>
+          </div>
+          <textarea id="templateOutput" rows="8" readonly></textarea>
+        </div>
+        <div class="result-card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h2>Prompt Preview</h2>
+            <button class="copy-btn" data-copy="prompt">Copy</button>
+          </div>
+          <textarea id="promptOutput" rows="8" readonly></textarea>
+        </div>
+        <div class="card-header" style="margin-top: 18px;">
+          <h2 style="margin: 0;">Raw Response</h2>
+          <button class="copy-btn" data-copy="raw">Copy</button>
+        </div>
+        <div class="raw" id="rawOutput">Waiting for response...</div>
+      </section>
+    </div>
+
+    <script>
+      const runBtn = document.getElementById("runBtn");
+      const statusEl = document.getElementById("status");
+      const keywordChips = document.getElementById("keywordChips");
+      const categoryChips = document.getElementById("categoryChips");
+      const templateOutput = document.getElementById("templateOutput");
+      const promptOutput = document.getElementById("promptOutput");
+      const rawOutput = document.getElementById("rawOutput");
+      const versionSelect = document.getElementById("version");
+      const copyButtons = document.querySelectorAll("[data-copy]");
+
+      function buildVersion() {
+        const version = versionSelect.value;
+        if (version === "custom") {
+          return document.getElementById("customVersion").value.trim();
+        }
+        return version;
+      }
+
+      function renderChips(target, items, className) {
+        target.innerHTML = "";
+        if (!items || items.length === 0) {
+          target.innerHTML = "<span class=\"meta\">(empty)</span>";
+          return;
+        }
+        items.forEach((item) => {
+          const chip = document.createElement("span");
+          chip.className = "chip" + (className ? " " + className : "");
+          chip.textContent = item;
+          target.appendChild(chip);
+        });
+      }
+
+      async function runExtraction() {
+        const userId = document.getElementById("userId").value.trim();
+        const version = buildVersion();
+        if (!userId) {
+          statusEl.textContent = "Please enter a username.";
+          statusEl.className = "status error";
+          return;
+        }
+        statusEl.textContent = "Requesting keywords...";
+        statusEl.className = "status";
+        keywordChips.innerHTML = "";
+        categoryChips.innerHTML = "";
+        rawOutput.textContent = "Loading...";
+        templateOutput.value = "Loading...";
+        promptOutput.value = "Loading...";
+
+        try {
+          const promptResponse = await fetch("/instagram/keyword-prompt", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, version }),
+          });
+          if (promptResponse.ok) {
+            const promptPayload = await promptResponse.json();
+            templateOutput.value = promptPayload.template || "(empty template)";
+            promptOutput.value = promptPayload.prompt || "(empty prompt)";
+          } else {
+            templateOutput.value = "(failed to load template)";
+            promptOutput.value = "(failed to load prompt)";
+          }
+
+          const response = await fetch("/instagram/extract-keywords", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, version }),
+          });
+          const text = await response.text();
+          rawOutput.textContent = text || "(empty response)";
+          if (!response.ok) {
+            statusEl.textContent = "Request failed: " + response.status;
+            statusEl.className = "status error";
+            return;
+          }
+          let payload = null;
+          try {
+            payload = JSON.parse(text);
+          } catch (err) {
+            statusEl.textContent = "Failed to parse JSON response.";
+            statusEl.className = "status error";
+            return;
+          }
+          renderChips(keywordChips, payload.keywords, "");
+          renderChips(categoryChips, payload.category, "alt");
+          statusEl.textContent = "Done.";
+        } catch (err) {
+          statusEl.textContent = "Network error: " + err.message;
+          statusEl.className = "status error";
+        }
+      }
+
+      async function loadVersions() {
+        try {
+          const response = await fetch("/instagram/keyword-versions");
+          const versions = response.ok ? await response.json() : [];
+          versionSelect.innerHTML = "";
+          versions.forEach((version, index) => {
+            const option = document.createElement("option");
+            option.value = version;
+            option.textContent = version + (index === 0 ? " (default)" : "");
+            versionSelect.appendChild(option);
+          });
+          const custom = document.createElement("option");
+          custom.value = "custom";
+          custom.textContent = "custom";
+          versionSelect.appendChild(custom);
+        } catch (err) {
+          versionSelect.innerHTML = "<option value=\"v2\">v2 (default)</option>";
+        }
+      }
+
+      runBtn.addEventListener("click", runExtraction);
+      loadVersions();
+
+      copyButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+          const target = button.dataset.copy;
+          let text = "";
+          if (target === "keywords") {
+            text = Array.from(keywordChips.querySelectorAll(".chip")).map((chip) => chip.textContent).join(", ");
+          } else if (target === "category") {
+            text = Array.from(categoryChips.querySelectorAll(".chip")).map((chip) => chip.textContent).join(", ");
+          } else if (target === "template") {
+            text = templateOutput.value;
+          } else if (target === "prompt") {
+            text = promptOutput.value;
+          } else if (target === "raw") {
+            text = rawOutput.textContent;
+          }
+          if (!text) {
+            statusEl.textContent = "Nothing to copy.";
+            statusEl.className = "status error";
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(text);
+            statusEl.textContent = "Copied to clipboard.";
+            statusEl.className = "status";
+          } catch (err) {
+            statusEl.textContent = "Copy failed: " + err.message;
+            statusEl.className = "status error";
+          }
+        });
+      });
+    </script>
+  </body>
+</html>
