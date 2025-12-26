@@ -3,23 +3,25 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Instagram Keyword Debug</title>
+    <title>Instagram API Debug Console v2</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Source+Code+Pro:wght@400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Sora:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <style>
       :root {
-        --bg: #0f1320;
-        --card: #171c2e;
-        --ink: #f7f2e7;
-        --muted: #b3b7c6;
-        --accent: #f2b880;
-        --accent-2: #7bdff2;
-        --danger: #ff8e8e;
-        --shadow: 0 18px 50px rgba(8, 10, 20, 0.55);
+        --bg: #f5f0e6;
+        --bg-2: #eef6f3;
+        --card: rgba(255, 255, 255, 0.86);
+        --ink: #1d232d;
+        --muted: #5f6b76;
+        --accent: #f29f58;
+        --accent-2: #2c9caf;
+        --accent-3: #244f5d;
+        --line: rgba(28, 33, 40, 0.1);
+        --shadow: 0 18px 40px rgba(20, 24, 31, 0.12);
       }
 
       * {
@@ -29,111 +31,152 @@
       body {
         margin: 0;
         min-height: 100vh;
-        font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;
+        font-family: "Sora", system-ui, -apple-system, sans-serif;
         color: var(--ink);
-        background: radial-gradient(circle at 20% 20%, #27335a, transparent 55%),
-          radial-gradient(circle at 80% 0%, #24324a, transparent 50%),
-          linear-gradient(160deg, #0f1320 20%, #121a2b 100%);
+        background: radial-gradient(circle at 0% 0%, #ffe3c7, transparent 45%),
+          radial-gradient(circle at 100% 0%, #cfe8e2, transparent 40%),
+          linear-gradient(180deg, var(--bg), var(--bg-2));
         display: flex;
-        align-items: center;
         justify-content: center;
-        padding: 48px 20px;
+        padding: 40px 20px 72px;
       }
 
-      .frame {
-        width: min(1240px, 100%);
-        display: grid;
-        gap: 28px;
-        grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
-      }
-
-      .panel {
-        background: var(--card);
-        border-radius: 24px;
-        padding: 28px;
-        box-shadow: var(--shadow);
-        position: relative;
-        overflow: hidden;
-        animation: slideUp 0.7s ease both;
-      }
-
-      .panel::after {
+      body::before {
         content: "";
-        position: absolute;
-        inset: auto -50% -80% -50%;
-        height: 160px;
-        background: linear-gradient(90deg, transparent, rgba(242, 184, 128, 0.2), transparent);
-        filter: blur(20px);
+        position: fixed;
+        inset: 0;
+        background-image: radial-gradient(rgba(36, 79, 93, 0.08) 1px, transparent 0);
+        background-size: 24px 24px;
+        opacity: 0.4;
+        pointer-events: none;
+        z-index: 0;
       }
 
-      h1 {
-        margin: 0 0 12px;
-        font-size: clamp(1.8rem, 2vw + 1.2rem, 2.6rem);
+      .container {
+        width: min(1200px, 100%);
+        z-index: 1;
       }
 
-      p {
-        margin: 0 0 18px;
+      .header {
+        display: flex;
+        gap: 24px;
+        align-items: flex-end;
+        justify-content: space-between;
+        margin-bottom: 20px;
+      }
+
+      .header h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 2.5vw + 1rem, 3rem);
+      }
+
+      .header p {
+        margin: 0;
         color: var(--muted);
-        line-height: 1.5;
+        max-width: 560px;
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.72rem;
+        color: var(--accent-3);
+      }
+
+      .user-box {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        min-width: 260px;
+        box-shadow: var(--shadow);
       }
 
       label {
         display: block;
-        margin: 16px 0 6px;
         font-weight: 600;
+        margin-bottom: 8px;
       }
 
       input,
       select,
-      button,
-      textarea {
+      textarea,
+      button {
         width: 100%;
-        border-radius: 14px;
-        border: 1px solid transparent;
-        background: #0f1425;
-        color: var(--ink);
-        padding: 12px 14px;
-        font-size: 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        padding: 10px 12px;
+        font-size: 0.95rem;
         font-family: inherit;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      textarea {
+        min-height: 90px;
+        resize: vertical;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.85rem;
       }
 
       input:focus,
       select:focus,
       textarea:focus {
-        outline: 2px solid rgba(123, 223, 242, 0.5);
+        outline: 2px solid rgba(44, 156, 175, 0.35);
+        border-color: rgba(44, 156, 175, 0.5);
       }
 
-      button {
-        cursor: pointer;
-        background: linear-gradient(120deg, var(--accent), var(--accent-2));
-        color: #1d1b18;
-        font-weight: 700;
+      .tabs {
+        display: inline-flex;
+        gap: 6px;
+        background: rgba(36, 79, 93, 0.08);
+        padding: 6px;
+        border-radius: 999px;
+        margin-bottom: 20px;
+      }
+
+      .tab-btn {
         border: none;
-        margin-top: 18px;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        padding: 10px 18px;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--accent-3);
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease, transform 0.2s ease;
       }
 
-      button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 25px rgba(242, 184, 128, 0.25);
+      .tab-btn.active {
+        background: linear-gradient(120deg, var(--accent), var(--accent-2));
+        color: #1c2228;
+        transform: translateY(-1px);
       }
 
-      .meta {
-        font-size: 0.9rem;
-        color: var(--muted);
+      .tab-panel {
+        display: none;
+        animation: fadeUp 0.35s ease both;
       }
 
-      .result-card {
-        background: #0e1322;
+      .tab-panel.active {
+        display: block;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        gap: 24px;
+      }
+
+      .card {
+        background: var(--card);
         border-radius: 18px;
-        padding: 18px;
-        min-height: 220px;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+        padding: 20px;
       }
 
-      .result-card h2 {
-        margin: 0;
-        font-size: 1.2rem;
+      .card + .card {
+        margin-top: 18px;
       }
 
       .card-header {
@@ -144,80 +187,154 @@
         gap: 12px;
       }
 
-      .copy-btn {
-        width: auto;
-        padding: 8px 14px;
-        border-radius: 999px;
-        font-size: 0.9rem;
-        font-weight: 600;
-        background: rgba(247, 242, 231, 0.08);
-        color: var(--ink);
-        border: 1px solid rgba(247, 242, 231, 0.2);
-        transition: background 0.2s ease, border-color 0.2s ease;
+      .card-header h2 {
+        margin: 0;
+        font-size: 1.1rem;
       }
 
-      .copy-btn:hover {
-        background: rgba(247, 242, 231, 0.18);
-        border-color: rgba(247, 242, 231, 0.4);
+      .badge {
+        background: rgba(44, 156, 175, 0.12);
+        color: var(--accent-3);
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 6px 10px;
+        border-radius: 999px;
+      }
+
+      .field {
+        margin-bottom: 14px;
+      }
+
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
+      .check input {
+        width: auto;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .btn {
+        cursor: pointer;
+        border: none;
+        background: linear-gradient(120deg, var(--accent), var(--accent-2));
+        color: #1c2228;
+        font-weight: 600;
+        padding: 10px 16px;
+        width: auto;
+      }
+
+      .btn.secondary {
+        background: rgba(36, 79, 93, 0.08);
+        color: var(--accent-3);
+        border: 1px solid rgba(36, 79, 93, 0.2);
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+
+      .status.error {
+        color: #b14634;
+      }
+
+      .status.success {
+        color: #1f7a5a;
+      }
+
+      .payload {
+        margin-top: 16px;
+      }
+
+      .payload-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.88rem;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .copy-btn {
+        border: 1px solid rgba(36, 79, 93, 0.2);
+        background: rgba(36, 79, 93, 0.08);
+        color: var(--accent-3);
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        cursor: pointer;
+        width: auto;
+      }
+
+      .block {
+        margin-bottom: 18px;
+      }
+
+      .block-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .block-header h3 {
+        margin: 0;
+        font-size: 1rem;
       }
 
       .chips {
         display: flex;
         flex-wrap: wrap;
-        gap: 10px;
+        gap: 8px;
       }
 
       .chip {
-        padding: 6px 12px;
+        padding: 6px 10px;
         border-radius: 999px;
-        background: rgba(123, 223, 242, 0.12);
-        border: 1px solid rgba(123, 223, 242, 0.4);
-        font-size: 0.92rem;
+        background: rgba(44, 156, 175, 0.12);
+        border: 1px solid rgba(44, 156, 175, 0.35);
+        font-size: 0.82rem;
       }
 
       .chip.alt {
-        background: rgba(242, 184, 128, 0.12);
-        border-color: rgba(242, 184, 128, 0.4);
-      }
-
-      .section {
-        margin-top: 18px;
-      }
-
-      .section-title {
-        margin: 0 0 12px;
-        font-size: 1.35rem;
-      }
-
-      .result-card.compact {
-        min-height: 0;
-      }
-
-      .status {
-        margin-top: 14px;
-        color: var(--muted);
-      }
-
-      .status.error {
-        color: var(--danger);
+        background: rgba(242, 159, 88, 0.15);
+        border-color: rgba(242, 159, 88, 0.4);
       }
 
       .raw {
-        margin-top: 16px;
-        font-family: "Source Code Pro", ui-monospace, SFMono-Regular, monospace;
-        font-size: 0.85rem;
-        background: #0b0f1a;
-        padding: 12px;
-        border-radius: 14px;
-        color: #cdd6f4;
+        background: #1c232b;
+        color: #f8f4ee;
+        padding: 14px;
+        border-radius: 12px;
+        font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+        font-size: 0.8rem;
         white-space: pre-wrap;
         word-break: break-word;
+        min-height: 80px;
       }
 
-      @keyframes slideUp {
+      @keyframes fadeUp {
         from {
           opacity: 0;
-          transform: translateY(10px);
+          transform: translateY(12px);
         }
         to {
           opacity: 1;
@@ -225,187 +342,291 @@
         }
       }
 
-      @media (max-width: 720px) {
-        body {
-          padding: 32px 16px;
+      @media (max-width: 960px) {
+        .header {
+          flex-direction: column;
+          align-items: flex-start;
         }
 
-        .panel {
-          padding: 22px;
+        .user-box {
+          width: 100%;
         }
 
-        .frame {
+        .grid {
           grid-template-columns: 1fr;
+        }
+
+        .row {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .tab-panel {
+          animation: none;
+        }
+
+        .tab-btn.active {
+          transform: none;
         }
       }
     </style>
   </head>
   <body>
-    <div class="frame">
-      <section class="panel">
-        <h1>Instagram API Debug Console</h1>
-        <p>
-          Lightweight API test harness for keyword extraction and DM generation.
-        </p>
-        <label for="userId">Instagram Username</label>
-        <input id="userId" type="text" placeholder="e.g. minD3D" />
+    <div class="container">
+      <header class="header">
+        <div>
+          <div class="eyebrow">Instagram API Debug v2</div>
+          <h1>Debug Console</h1>
+          <p>
+            Two purpose-built tabs for API testing. Use Keyword Extract for prompt debugging
+            and DM Message for end-to-end message generation.
+          </p>
+        </div>
+        <div class="user-box">
+          <label for="userId">Instagram Username</label>
+          <input id="userId" type="text" placeholder="e.g. minD3D" />
+        </div>
+      </header>
 
-        <button id="runBtn">Run Keyword Extraction</button>
-        <div class="status meta" id="keywordStatus"></div>
-        <button id="dmBtn">Generate DM</button>
-        <div class="status meta" id="dmStatus"></div>
+      <div class="tabs" role="tablist">
+        <button class="tab-btn active" data-tab="keywords" type="button">Keyword Extract</button>
+        <button class="tab-btn" data-tab="dm" type="button">DM Message</button>
+      </div>
+
+      <section class="tab-panel active" data-panel="keywords">
+        <div class="grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Request</h2>
+                <span class="badge">POST /instagram/extract-keywords</span>
+              </div>
+              <div class="field">
+                <label for="keywordVersion">Prompt Version</label>
+                <div class="row">
+                  <select id="keywordVersion"></select>
+                  <input id="customKeywordVersion" type="text" placeholder="custom version (v3)" />
+                </div>
+              </div>
+              <label class="check">
+                <input id="keywordIgnoreCache" type="checkbox" />
+                ignoreCache
+              </label>
+              <div class="actions">
+                <button class="btn" id="keywordBtn" type="button">Extract Keywords</button>
+                <button class="btn secondary" id="promptBtn" type="button">Fetch Prompt Preview</button>
+              </div>
+              <div class="status" id="keywordStatus">Idle.</div>
+              <div class="status" id="promptStatus"></div>
+              <div class="payload">
+                <div class="payload-header">
+                  <span>Request JSON</span>
+                  <button class="copy-btn" data-copy="keyword-request" type="button">Copy</button>
+                </div>
+                <textarea id="keywordRequestOutput" rows="7" readonly></textarea>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Response</h2>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Keywords</h3>
+                  <button class="copy-btn" data-copy="keywords" type="button">Copy</button>
+                </div>
+                <div class="chips" id="keywordChips"></div>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Prompt Template</h3>
+                  <button class="copy-btn" data-copy="template" type="button">Copy</button>
+                </div>
+                <textarea id="templateOutput" rows="6" readonly></textarea>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Prompt Preview</h3>
+                  <button class="copy-btn" data-copy="prompt" type="button">Copy</button>
+                </div>
+                <textarea id="promptOutput" rows="6" readonly></textarea>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Raw Response</h3>
+                  <button class="copy-btn" data-copy="keyword-raw" type="button">Copy</button>
+                </div>
+                <div class="raw" id="keywordRawOutput">Waiting for response...</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
-      <section class="panel">
-        <div class="section">
-          <h2 class="section-title">Keyword Extraction</h2>
-          <div class="result-card compact">
-            <div class="card-header">
-              <h2>Request</h2>
+      <section class="tab-panel" data-panel="dm">
+        <div class="grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Request</h2>
+                <span class="badge">POST /instagram/generate-dm</span>
+              </div>
+              <div class="field">
+                <label for="dmKeywordVersion">Keyword Version</label>
+                <div class="row">
+                  <select id="dmKeywordVersion"></select>
+                  <input id="customDmKeywordVersion" type="text" placeholder="custom keyword version" />
+                </div>
+              </div>
+              <div class="field">
+                <label for="dmVersion">DM Prompt Version</label>
+                <div class="row">
+                  <select id="dmVersion"></select>
+                  <input id="customDmVersion" type="text" placeholder="custom dm version" />
+                </div>
+              </div>
+              <label class="check">
+                <input id="dmIgnoreCache" type="checkbox" />
+                ignoreCache
+              </label>
+              <div class="actions">
+                <button class="btn" id="dmBtn" type="button">Generate DM</button>
+              </div>
+              <div class="status" id="dmStatus">Idle.</div>
+              <div class="payload">
+                <div class="payload-header">
+                  <span>Request JSON</span>
+                  <button class="copy-btn" data-copy="dm-request" type="button">Copy</button>
+                </div>
+                <textarea id="dmRequestOutput" rows="7" readonly></textarea>
+              </div>
             </div>
-            <label for="keywordVersion">Prompt Version</label>
-            <select id="keywordVersion"></select>
-            <label for="customKeywordVersion">Custom Version</label>
-            <input id="customKeywordVersion" type="text" placeholder="e.g. v3" />
-            <label class="meta">
-              <input id="keywordIgnoreCache" type="checkbox" />
-              Ignore Cache
-            </label>
-            <textarea id="keywordRequestOutput" rows="6" readonly></textarea>
           </div>
-          <div class="result-card">
-            <div class="card-header">
-              <h2>Keywords</h2>
-              <button class="copy-btn" data-copy="keywords">Copy</button>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Response</h2>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>DM Message</h3>
+                  <button class="copy-btn" data-copy="dm" type="button">Copy</button>
+                </div>
+                <textarea id="dmOutput" rows="6" readonly></textarea>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Mood Keywords</h3>
+                </div>
+                <div class="chips" id="dmMoodChips"></div>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Content Keywords</h3>
+                </div>
+                <div class="chips" id="dmContentChips"></div>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Tone Keywords</h3>
+                </div>
+                <div class="chips" id="dmToneChips"></div>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Impression Summary</h3>
+                  <button class="copy-btn" data-copy="dm-summary" type="button">Copy</button>
+                </div>
+                <textarea id="dmSummaryOutput" rows="4" readonly></textarea>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Raw Response</h3>
+                  <button class="copy-btn" data-copy="dm-raw" type="button">Copy</button>
+                </div>
+                <div class="raw" id="dmRawOutput">Waiting for response...</div>
+              </div>
             </div>
-            <div class="chips" id="keywordChips"></div>
           </div>
-          <div class="result-card" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Category</h2>
-              <button class="copy-btn" data-copy="category">Copy</button>
-            </div>
-            <div class="chips" id="categoryChips"></div>
-          </div>
-          <div class="result-card" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Prompt Template</h2>
-              <button class="copy-btn" data-copy="template">Copy</button>
-            </div>
-            <textarea id="templateOutput" rows="8" readonly></textarea>
-          </div>
-          <div class="result-card" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Prompt Preview</h2>
-              <button class="copy-btn" data-copy="prompt">Copy</button>
-            </div>
-            <textarea id="promptOutput" rows="8" readonly></textarea>
-          </div>
-          <div class="card-header" style="margin-top: 18px;">
-            <h2 style="margin: 0;">Response</h2>
-            <button class="copy-btn" data-copy="keyword-raw">Copy</button>
-          </div>
-          <div class="raw" id="keywordRawOutput">Waiting for response...</div>
-        </div>
-
-        <div class="section">
-          <h2 class="section-title">DM Generation</h2>
-          <div class="result-card compact">
-            <div class="card-header">
-              <h2>Request</h2>
-            </div>
-            <label for="dmKeywordVersion">Keyword Version</label>
-            <select id="dmKeywordVersion"></select>
-            <label for="customDmKeywordVersion">Custom Keyword Version</label>
-            <input id="customDmKeywordVersion" type="text" placeholder="e.g. v3" />
-            <label for="dmVersion">DM Prompt Version</label>
-            <select id="dmVersion"></select>
-            <label for="customDmVersion">Custom DM Version</label>
-            <input id="customDmVersion" type="text" placeholder="e.g. v2" />
-            <label class="meta">
-              <input id="dmIgnoreCache" type="checkbox" />
-              Ignore Cache
-            </label>
-            <textarea id="dmRequestOutput" rows="7" readonly></textarea>
-          </div>
-          <div class="result-card">
-            <div class="card-header">
-              <h2>DM Message</h2>
-              <button class="copy-btn" data-copy="dm">Copy</button>
-            </div>
-            <textarea id="dmOutput" rows="8" readonly></textarea>
-          </div>
-          <div class="result-card compact" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Mood Keywords</h2>
-            </div>
-            <div class="chips" id="dmMoodChips"></div>
-          </div>
-          <div class="result-card compact" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Content Keywords</h2>
-            </div>
-            <div class="chips" id="dmContentChips"></div>
-          </div>
-          <div class="result-card compact" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Tone Keywords</h2>
-            </div>
-            <div class="chips" id="dmToneChips"></div>
-          </div>
-          <div class="result-card" style="margin-top: 18px;">
-            <div class="card-header">
-              <h2>Impression Summary</h2>
-              <button class="copy-btn" data-copy="dm-summary">Copy</button>
-            </div>
-            <textarea id="dmSummaryOutput" rows="5" readonly></textarea>
-          </div>
-          <div class="card-header" style="margin-top: 18px;">
-            <h2 style="margin: 0;">Response</h2>
-            <button class="copy-btn" data-copy="dm-raw">Copy</button>
-          </div>
-          <div class="raw" id="dmRawOutput">Waiting for response...</div>
         </div>
       </section>
     </div>
 
     <script>
-      const runBtn = document.getElementById("runBtn");
-      const dmBtn = document.getElementById("dmBtn");
+      const userIdInput = document.getElementById("userId");
+      const keywordVersionSelect = document.getElementById("keywordVersion");
+      const customKeywordVersionInput = document.getElementById("customKeywordVersion");
+      const keywordIgnoreCache = document.getElementById("keywordIgnoreCache");
+      const keywordRequestOutput = document.getElementById("keywordRequestOutput");
+      const keywordBtn = document.getElementById("keywordBtn");
+      const promptBtn = document.getElementById("promptBtn");
       const keywordStatusEl = document.getElementById("keywordStatus");
-      const dmStatusEl = document.getElementById("dmStatus");
+      const promptStatusEl = document.getElementById("promptStatus");
       const keywordChips = document.getElementById("keywordChips");
-      const categoryChips = document.getElementById("categoryChips");
       const templateOutput = document.getElementById("templateOutput");
       const promptOutput = document.getElementById("promptOutput");
-      const dmOutput = document.getElementById("dmOutput");
       const keywordRawOutput = document.getElementById("keywordRawOutput");
-      const dmRawOutput = document.getElementById("dmRawOutput");
+
+      const dmKeywordVersionSelect = document.getElementById("dmKeywordVersion");
+      const customDmKeywordVersionInput = document.getElementById("customDmKeywordVersion");
+      const dmVersionSelect = document.getElementById("dmVersion");
+      const customDmVersionInput = document.getElementById("customDmVersion");
+      const dmIgnoreCache = document.getElementById("dmIgnoreCache");
+      const dmRequestOutput = document.getElementById("dmRequestOutput");
+      const dmBtn = document.getElementById("dmBtn");
+      const dmStatusEl = document.getElementById("dmStatus");
+      const dmOutput = document.getElementById("dmOutput");
       const dmMoodChips = document.getElementById("dmMoodChips");
       const dmContentChips = document.getElementById("dmContentChips");
       const dmToneChips = document.getElementById("dmToneChips");
       const dmSummaryOutput = document.getElementById("dmSummaryOutput");
-      const keywordVersionSelect = document.getElementById("keywordVersion");
-      const dmKeywordVersionSelect = document.getElementById("dmKeywordVersion");
-      const dmVersionSelect = document.getElementById("dmVersion");
-      const keywordRequestOutput = document.getElementById("keywordRequestOutput");
-      const dmRequestOutput = document.getElementById("dmRequestOutput");
-      const keywordIgnoreCache = document.getElementById("keywordIgnoreCache");
-      const dmIgnoreCache = document.getElementById("dmIgnoreCache");
+      const dmRawOutput = document.getElementById("dmRawOutput");
+
+      const tabButtons = document.querySelectorAll(".tab-btn");
+      const tabPanels = document.querySelectorAll(".tab-panel");
       const copyButtons = document.querySelectorAll("[data-copy]");
 
-      function buildVersion(selectEl, customInputId) {
+      function buildVersion(selectEl, customInputEl) {
         const version = selectEl.value;
         if (version === "custom") {
-          return document.getElementById(customInputId).value.trim();
+          return customInputEl.value.trim();
         }
         return version;
+      }
+
+      function buildKeywordPayload() {
+        return {
+          userId: userIdInput.value.trim(),
+          version: buildVersion(keywordVersionSelect, customKeywordVersionInput),
+          ignoreCache: keywordIgnoreCache.checked,
+        };
+      }
+
+      function buildDmPayload() {
+        return {
+          userId: userIdInput.value.trim(),
+          version: buildVersion(dmKeywordVersionSelect, customDmKeywordVersionInput),
+          dmVersion: buildVersion(dmVersionSelect, customDmVersionInput),
+          ignoreCache: dmIgnoreCache.checked,
+        };
+      }
+
+      function setRequestPreview(target, payload) {
+        target.value = JSON.stringify(payload, null, 2);
+      }
+
+      function setStatus(target, message, type) {
+        target.textContent = message;
+        target.className = "status" + (type ? " " + type : "");
       }
 
       function renderChips(target, items, className) {
         target.innerHTML = "";
         if (!items || items.length === 0) {
-          target.innerHTML = "<span class=\"meta\">(empty)</span>";
+          target.innerHTML = "<span class=\"chip alt\">(empty)</span>";
           return;
         }
         items.forEach((item) => {
@@ -416,119 +637,121 @@
         });
       }
 
-      function setStatus(target, message, isError) {
-        target.textContent = message;
-        target.className = isError ? "status error" : "status";
+      function updateRequestPreviews() {
+        setRequestPreview(keywordRequestOutput, buildKeywordPayload());
+        setRequestPreview(dmRequestOutput, buildDmPayload());
       }
 
-      function setRequestPreview(target, payload) {
-        target.value = JSON.stringify(payload, null, 2);
-      }
-
-      async function runExtraction() {
-        const userId = document.getElementById("userId").value.trim();
-        const version = buildVersion(keywordVersionSelect, "customKeywordVersion");
-        const ignoreCache = keywordIgnoreCache.checked;
-        if (!userId) {
-          setStatus(keywordStatusEl, "Please enter a username.", true);
+      async function runPromptPreview() {
+        const payload = buildKeywordPayload();
+        if (!payload.userId) {
+          setStatus(promptStatusEl, "Username is required for prompt preview.", "error");
           return;
         }
-        setStatus(keywordStatusEl, "Requesting keywords...", false);
-        keywordChips.innerHTML = "";
-        categoryChips.innerHTML = "";
-        keywordRawOutput.textContent = "Loading...";
+        setStatus(promptStatusEl, "Fetching prompt preview...", "info");
         templateOutput.value = "Loading...";
         promptOutput.value = "Loading...";
-        setRequestPreview(keywordRequestOutput, { userId, version, ignoreCache });
 
         try {
-          const promptResponse = await fetch("/instagram/keyword-prompt", {
+          const response = await fetch("/instagram/keyword-prompt", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, version }),
+            body: JSON.stringify({ userId: payload.userId, version: payload.version }),
           });
-          if (promptResponse.ok) {
-            const promptPayload = await promptResponse.json();
-            templateOutput.value = promptPayload.template || "(empty template)";
-            promptOutput.value = promptPayload.prompt || "(empty prompt)";
-          } else {
-            templateOutput.value = "(failed to load template)";
-            promptOutput.value = "(failed to load prompt)";
+          if (!response.ok) {
+            setStatus(promptStatusEl, "Prompt preview failed: " + response.status, "error");
+            templateOutput.value = "(failed)";
+            promptOutput.value = "(failed)";
+            return;
           }
+          const data = await response.json();
+          templateOutput.value = data.template || "(empty template)";
+          promptOutput.value = data.prompt || "(empty prompt)";
+          setStatus(promptStatusEl, "Prompt preview updated.", "success");
+        } catch (err) {
+          setStatus(promptStatusEl, "Network error: " + err.message, "error");
+        }
+      }
 
+      async function runKeywordExtraction() {
+        const payload = buildKeywordPayload();
+        if (!payload.userId) {
+          setStatus(keywordStatusEl, "Username is required for keyword extraction.", "error");
+          return;
+        }
+        setStatus(keywordStatusEl, "Requesting keywords...", "info");
+        keywordRawOutput.textContent = "Loading...";
+        keywordChips.innerHTML = "";
+
+        try {
           const response = await fetch("/instagram/extract-keywords", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, version, ignoreCache }),
+            body: JSON.stringify(payload),
           });
           const text = await response.text();
           keywordRawOutput.textContent = text || "(empty response)";
           if (!response.ok) {
-            setStatus(keywordStatusEl, "Request failed: " + response.status, true);
+            setStatus(keywordStatusEl, "Request failed: " + response.status, "error");
             return;
           }
-          let payload = null;
+          let data = null;
           try {
-            payload = JSON.parse(text);
+            data = JSON.parse(text);
           } catch (err) {
-            setStatus(keywordStatusEl, "Failed to parse JSON response.", true);
+            setStatus(keywordStatusEl, "Failed to parse JSON response.", "error");
             return;
           }
-          renderChips(keywordChips, payload.keywords, "");
-          renderChips(categoryChips, payload.category, "alt");
-          setStatus(keywordStatusEl, "Done.", false);
+          renderChips(keywordChips, data.keywords, "");
+          setStatus(keywordStatusEl, "Keyword extraction complete.", "success");
         } catch (err) {
-          setStatus(keywordStatusEl, "Network error: " + err.message, true);
+          setStatus(keywordStatusEl, "Network error: " + err.message, "error");
         }
       }
 
       async function runDmGeneration() {
-        const userId = document.getElementById("userId").value.trim();
-        const version = buildVersion(dmKeywordVersionSelect, "customDmKeywordVersion");
-        const dmVersion = buildVersion(dmVersionSelect, "customDmVersion");
-        const ignoreCache = dmIgnoreCache.checked;
-        if (!userId) {
-          setStatus(dmStatusEl, "Please enter a username.", true);
+        const payload = buildDmPayload();
+        if (!payload.userId) {
+          setStatus(dmStatusEl, "Username is required for DM generation.", "error");
           return;
         }
-        setStatus(dmStatusEl, "Generating DM...", false);
+        setStatus(dmStatusEl, "Generating DM...", "info");
         dmOutput.value = "Loading...";
         dmRawOutput.textContent = "Loading...";
         dmSummaryOutput.value = "";
         dmMoodChips.innerHTML = "";
         dmContentChips.innerHTML = "";
         dmToneChips.innerHTML = "";
-        setRequestPreview(dmRequestOutput, { userId, version, dmVersion, ignoreCache });
 
         try {
           const response = await fetch("/instagram/generate-dm", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId, version, dmVersion, ignoreCache }),
+            body: JSON.stringify(payload),
           });
           const text = await response.text();
           dmRawOutput.textContent = text || "(empty response)";
           if (!response.ok) {
-            setStatus(dmStatusEl, "Request failed: " + response.status, true);
-            dmOutput.value = "(failed to generate)";
+            setStatus(dmStatusEl, "Request failed: " + response.status, "error");
+            dmOutput.value = "(failed)";
             return;
           }
-          let payload = null;
+          let data = null;
           try {
-            payload = JSON.parse(text);
+            data = JSON.parse(text);
           } catch (err) {
-            setStatus(dmStatusEl, "Failed to parse JSON response.", true);
+            setStatus(dmStatusEl, "Failed to parse JSON response.", "error");
             dmOutput.value = "(invalid response)";
             return;
           }
-          dmOutput.value = payload.message || "(empty message)";
-          renderChips(dmMoodChips, payload.moodKeywords, "");
-          renderChips(dmContentChips, payload.contentKeywords, "");
-          renderChips(dmToneChips, payload.toneKeywords, "alt");
-          dmSummaryOutput.value = payload.impressionSummary || "(empty summary)";
-          setStatus(dmStatusEl, "Done.", false);
+          dmOutput.value = data.message || "(empty message)";
+          renderChips(dmMoodChips, data.moodKeywords, "");
+          renderChips(dmContentChips, data.contentKeywords, "");
+          renderChips(dmToneChips, data.toneKeywords, "alt");
+          dmSummaryOutput.value = data.impressionSummary || "(empty summary)";
+          setStatus(dmStatusEl, "DM generation complete.", "success");
         } catch (err) {
-          setStatus(dmStatusEl, "Network error: " + err.message, true);
+          setStatus(dmStatusEl, "Network error: " + err.message, "error");
           dmOutput.value = "(network error)";
         }
       }
@@ -537,48 +760,48 @@
         try {
           const response = await fetch("/instagram/keyword-versions");
           const versions = response.ok ? await response.json() : [];
-          keywordVersionSelect.innerHTML = "";
-          dmKeywordVersionSelect.innerHTML = "";
+          populateSelect(keywordVersionSelect, versions, "v2");
+          populateSelect(dmKeywordVersionSelect, versions, "v2");
+        } catch (err) {
+          populateSelect(keywordVersionSelect, [], "v2");
+          populateSelect(dmKeywordVersionSelect, [], "v2");
+        }
+
+        try {
+          const response = await fetch("/instagram/dm-versions");
+          const versions = response.ok ? await response.json() : [];
+          populateSelect(dmVersionSelect, versions, "v1");
+        } catch (err) {
+          populateSelect(dmVersionSelect, [], "v1");
+        }
+
+        updateRequestPreviews();
+      }
+
+      function populateSelect(selectEl, versions, fallback) {
+        selectEl.innerHTML = "";
+        if (!versions || versions.length === 0) {
+          const option = document.createElement("option");
+          option.value = fallback;
+          option.textContent = fallback + " (default)";
+          selectEl.appendChild(option);
+        } else {
           versions.forEach((version, index) => {
             const option = document.createElement("option");
             option.value = version;
             option.textContent = version + (index === 0 ? " (default)" : "");
-            keywordVersionSelect.appendChild(option);
-            dmKeywordVersionSelect.appendChild(option.cloneNode(true));
+            selectEl.appendChild(option);
           });
-          const custom = document.createElement("option");
-          custom.value = "custom";
-          custom.textContent = "custom";
-          keywordVersionSelect.appendChild(custom);
-          dmKeywordVersionSelect.appendChild(custom.cloneNode(true));
-        } catch (err) {
-          keywordVersionSelect.innerHTML = "<option value=\"v2\">v2 (default)</option>";
-          dmKeywordVersionSelect.innerHTML = "<option value=\"v2\">v2 (default)</option>";
         }
-
-        try {
-          const dmResponse = await fetch("/instagram/dm-versions");
-          const dmVersions = dmResponse.ok ? await dmResponse.json() : [];
-          dmVersionSelect.innerHTML = "";
-          dmVersions.forEach((version, index) => {
-            const option = document.createElement("option");
-            option.value = version;
-            option.textContent = version + (index === 0 ? " (default)" : "");
-            dmVersionSelect.appendChild(option);
-          });
-          const custom = document.createElement("option");
-          custom.value = "custom";
-          custom.textContent = "custom";
-          dmVersionSelect.appendChild(custom);
-        } catch (err) {
-          dmVersionSelect.innerHTML = "<option value=\"v1\">v1 (default)</option>";
-        }
+        const custom = document.createElement("option");
+        custom.value = "custom";
+        custom.textContent = "custom";
+        selectEl.appendChild(custom);
       }
 
-      async function copyTextToClipboard(text) {
+      function copyTextToClipboard(text) {
         if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(text);
-          return;
+          return navigator.clipboard.writeText(text);
         }
         const temp = document.createElement("textarea");
         temp.value = text;
@@ -592,46 +815,73 @@
         if (!ok) {
           throw new Error("Copy not permitted");
         }
+        return Promise.resolve();
       }
 
-      runBtn.addEventListener("click", runExtraction);
-      dmBtn.addEventListener("click", runDmGeneration);
-      loadVersions();
+      tabButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const tab = button.dataset.tab;
+          tabButtons.forEach((btn) => btn.classList.remove("active"));
+          button.classList.add("active");
+          tabPanels.forEach((panel) => {
+            panel.classList.toggle("active", panel.dataset.panel === tab);
+          });
+        });
+      });
 
       copyButtons.forEach((button) => {
         button.addEventListener("click", async () => {
           const target = button.dataset.copy;
           let text = "";
-          const statusTarget = target.startsWith("dm") ? dmStatusEl : keywordStatusEl;
           if (target === "keywords") {
-            text = Array.from(keywordChips.querySelectorAll(".chip")).map((chip) => chip.textContent).join(", ");
-          } else if (target === "category") {
-            text = Array.from(categoryChips.querySelectorAll(".chip")).map((chip) => chip.textContent).join(", ");
+            text = Array.from(keywordChips.querySelectorAll(".chip"))
+              .map((chip) => chip.textContent)
+              .join(", ");
           } else if (target === "template") {
             text = templateOutput.value;
           } else if (target === "prompt") {
             text = promptOutput.value;
+          } else if (target === "keyword-raw") {
+            text = keywordRawOutput.textContent;
+          } else if (target === "keyword-request") {
+            text = keywordRequestOutput.value;
           } else if (target === "dm") {
             text = dmOutput.value;
           } else if (target === "dm-summary") {
             text = dmSummaryOutput.value;
-          } else if (target === "keyword-raw") {
-            text = keywordRawOutput.textContent;
           } else if (target === "dm-raw") {
             text = dmRawOutput.textContent;
+          } else if (target === "dm-request") {
+            text = dmRequestOutput.value;
           }
+
           if (!text) {
-            setStatus(statusTarget, "Nothing to copy.", true);
             return;
           }
-          try {
-            await copyTextToClipboard(text);
-            setStatus(statusTarget, "Copied to clipboard.", false);
-          } catch (err) {
-            setStatus(statusTarget, "Copy failed: " + err.message, true);
-          }
+          await copyTextToClipboard(text);
         });
       });
+
+      keywordBtn.addEventListener("click", runKeywordExtraction);
+      promptBtn.addEventListener("click", runPromptPreview);
+      dmBtn.addEventListener("click", runDmGeneration);
+
+      [
+        userIdInput,
+        keywordVersionSelect,
+        customKeywordVersionInput,
+        keywordIgnoreCache,
+        dmKeywordVersionSelect,
+        customDmKeywordVersionInput,
+        dmVersionSelect,
+        customDmVersionInput,
+        dmIgnoreCache,
+      ].forEach((el) => {
+        el.addEventListener("input", updateRequestPreviews);
+        el.addEventListener("change", updateRequestPreviews);
+      });
+
+      loadVersions();
     </script>
   </body>
 </html>
