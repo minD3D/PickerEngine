@@ -40,5 +40,10 @@ jobs:
             --instance-ids "i-07fbb6985e978b2cc" \
             --document-name "AWS-RunShellScript" \
             --comment "Deploy PickerEngine" \
-            --parameters commands="mkdir -p /home/ubuntu/app.jar,aws s3 cp s3://pickerengine-deploy/app.jar /home/ubuntu/app.jar/app.jar,sudo pkill -f app.jar || true,RDS_PASSWORD='${{ secrets.RDS_PASSWORD }}' IG_SESSIONID='${{ secrets.IG_SESSIONID }}' OPENAI_API_KEY='${{ secrets.OPENAI_API_KEY }}' nohup java -jar /home/ubuntu/app.jar/app.jar > /home/ubuntu/app.log 2>&1 &" \
+            --parameters 'commands=[
+              "mkdir -p /home/ubuntu/app.jar",
+              "aws s3 cp s3://pickerengine-deploy/app.jar /home/ubuntu/app.jar/app.jar",
+              "sudo pkill -f app.jar || true",
+              "nohup env RDS_PASSWORD=\"${{ secrets.RDS_PASSWORD }}\" IG_SESSIONID=\"${{ secrets.IG_SESSIONID }}\" OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" java -jar /home/ubuntu/app.jar/app.jar > /home/ubuntu/app.log 2>&1 &"
+            ]' \
             --region ap-northeast-2
