@@ -167,26 +167,10 @@
         gap: 10px;
       }
 
-      .chip {
-        padding: 6px 12px;
-        border-radius: 999px;
-        background: rgba(123, 223, 242, 0.12);
-        border: 1px solid rgba(123, 223, 242, 0.4);
-        font-size: 0.92rem;
-      }
-
-      .chip.alt {
-        background: rgba(242, 184, 128, 0.12);
-        border-color: rgba(242, 184, 128, 0.4);
-      }
 
       .status {
         margin-top: 14px;
         color: var(--muted);
-      }
-
-      .status.error {
-        color: var(--danger);
       }
 
       .raw {
@@ -244,6 +228,7 @@
         <input id="customVersion" type="text" placeholder="e.g. v3" />
 
         <button id="runBtn">Run Extraction</button>
+        <button id="dmBtn">Generate DM</button>
         <div class="status meta" id="status"></div>
       </section>
 
@@ -276,6 +261,13 @@
           </div>
           <textarea id="promptOutput" rows="8" readonly></textarea>
         </div>
+        <div class="result-card" style="margin-top: 18px;">
+          <div class="card-header">
+            <h2>DM Message</h2>
+            <button class="copy-btn" data-copy="dm">Copy</button>
+          </div>
+          <textarea id="dmOutput" rows="8" readonly></textarea>
+        </div>
         <div class="card-header" style="margin-top: 18px;">
           <h2 style="margin: 0;">Raw Response</h2>
           <button class="copy-btn" data-copy="raw">Copy</button>
@@ -286,11 +278,13 @@
 
     <script>
       const runBtn = document.getElementById("runBtn");
+      const dmBtn = document.getElementById("dmBtn");
       const statusEl = document.getElementById("status");
       const keywordChips = document.getElementById("keywordChips");
       const categoryChips = document.getElementById("categoryChips");
       const templateOutput = document.getElementById("templateOutput");
       const promptOutput = document.getElementById("promptOutput");
+      const dmOutput = document.getElementById("dmOutput");
       const rawOutput = document.getElementById("rawOutput");
       const versionSelect = document.getElementById("version");
       const copyButtons = document.querySelectorAll("[data-copy]");
@@ -332,6 +326,7 @@
         rawOutput.textContent = "Loading...";
         templateOutput.value = "Loading...";
         promptOutput.value = "Loading...";
+        dmOutput.value = "";
 
         try {
           const promptResponse = await fetch("/instagram/keyword-prompt", {
@@ -377,6 +372,49 @@
         }
       }
 
+      async function runDmGeneration() {
+        const userId = document.getElementById("userId").value.trim();
+        const version = buildVersion();
+        if (!userId) {
+          statusEl.textContent = "Please enter a username.";
+          statusEl.className = "status error";
+          return;
+        }
+        statusEl.textContent = "Generating DM...";
+        statusEl.className = "status";
+        dmOutput.value = "Loading...";
+
+        try {
+          const response = await fetch("/instagram/generate-dm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId, version, ignoreCache: false }),
+          });
+          const text = await response.text();
+          if (!response.ok) {
+            statusEl.textContent = "Request failed: " + response.status;
+            statusEl.className = "status error";
+            dmOutput.value = "(failed to generate)";
+            return;
+          }
+          let payload = null;
+          try {
+            payload = JSON.parse(text);
+          } catch (err) {
+            statusEl.textContent = "Failed to parse JSON response.";
+            statusEl.className = "status error";
+            dmOutput.value = "(invalid response)";
+            return;
+          }
+          dmOutput.value = payload.message || "(empty message)";
+          statusEl.textContent = "Done.";
+        } catch (err) {
+          statusEl.textContent = "Network error: " + err.message;
+          statusEl.className = "status error";
+          dmOutput.value = "(network error)";
+        }
+      }
+
       async function loadVersions() {
         try {
           const response = await fetch("/instagram/keyword-versions");
@@ -397,7 +435,27 @@
         }
       }
 
+      async function copyTextToClipboard(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return;
+        }
+        const temp = document.createElement("textarea");
+        temp.value = text;
+        temp.setAttribute("readonly", "");
+        temp.style.position = "absolute";
+        temp.style.left = "-9999px";
+        document.body.appendChild(temp);
+        temp.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(temp);
+        if (!ok) {
+          throw new Error("Copy not permitted");
+        }
+      }
+
       runBtn.addEventListener("click", runExtraction);
+      dmBtn.addEventListener("click", runDmGeneration);
       loadVersions();
 
       copyButtons.forEach((button) => {
@@ -412,6 +470,8 @@
             text = templateOutput.value;
           } else if (target === "prompt") {
             text = promptOutput.value;
+          } else if (target === "dm") {
+            text = dmOutput.value;
           } else if (target === "raw") {
             text = rawOutput.textContent;
           }
@@ -421,7 +481,7 @@
             return;
           }
           try {
-            await navigator.clipboard.writeText(text);
+            await copyTextToClipboard(text);
             statusEl.textContent = "Copied to clipboard.";
             statusEl.className = "status";
           } catch (err) {

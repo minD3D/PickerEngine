@@ -18,6 +18,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -29,9 +30,11 @@ public class InstagramKeywordService {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String DEFAULT_MODEL = "gpt-4o-mini";
     private static final String DEFAULT_PROMPT_VERSION = "v2";
+    private static final int KEYWORD_CACHE_DAYS = 3;
 
     private final InstagramService instagramService;
     private final InstagramPromptService promptService;
+    private final InstagramKeywordCacheService keywordCacheService;
     private final HttpClient httpClient;
     private final String apiKey;
     private final String model;
@@ -42,6 +45,7 @@ public class InstagramKeywordService {
     public InstagramKeywordService(
             InstagramService instagramService,
             InstagramPromptService promptService,
+            InstagramKeywordCacheService keywordCacheService,
             @Value("${openai.api-key:}") String apiKey,
             @Value("${openai.model:" + DEFAULT_MODEL + "}") String model,
             @Value("${instagram.keyword-post-limit:10}") int postLimit,
@@ -49,6 +53,7 @@ public class InstagramKeywordService {
             @Value("${openai.timeout-seconds:20}") int timeoutSeconds) {
         this.instagramService = instagramService;
         this.promptService = promptService;
+        this.keywordCacheService = keywordCacheService;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.model = model == null || model.isBlank() ? DEFAULT_MODEL : model.trim();
         this.postLimit = Math.max(0, postLimit);
@@ -61,15 +66,28 @@ public class InstagramKeywordService {
                 .build();
     }
 
-    public InstagramKeywordResponse extractKeywords(String userId, String version) {
+    public InstagramKeywordResponse extractKeywords(String userId, String version, boolean ignoreCache) {
         if (userId == null || userId.isBlank() || apiKey.isBlank()) {
             return emptyResponse();
         }
-        InstagramProfileWithPosts data = instagramService.fetchProfileWithPosts(userId);
+        String normalized = normalizeUsername(userId);
+        String resolvedVersion = resolvePromptVersion(version);
+        if (!ignoreCache) {
+            LocalDateTime threshold = LocalDateTime.now().minusDays(KEYWORD_CACHE_DAYS);
+            InstagramKeywordResponse cached = keywordCacheService
+                    .findFreshCached(normalized, resolvedVersion, threshold)
+                    .orElse(null);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        InstagramProfileWithPosts data = instagramService.fetchProfileWithPosts(normalized);
         if (data == null || data.profile() == null) {
             return emptyResponse();
         }
-        return callModel(data, version);
+        InstagramKeywordResponse response = callModel(data, resolvedVersion);
+        keywordCacheService.save(normalized, resolvedVersion, response);
+        return response;
     }
 
     public InstagramKeywordPromptResponse buildPromptPreview(String userId, String version) {
@@ -117,7 +135,7 @@ public class InstagramKeywordService {
 
         content.addObject()
                 .put("type", "input_text")
-                .put("text", promptService.buildPrompt(data, postLimit, resolvePromptVersion(version)));
+                .put("text", promptService.buildPrompt(data, postLimit, version));
 
         for (String imageUrl : collectImageUrls(data)) {
             content.addObject()
@@ -245,5 +263,9 @@ public class InstagramKeywordService {
             return defaultPromptVersion;
         }
         return version.trim();
+    }
+
+    private static String normalizeUsername(String userId) {
+        return userId.trim().toLowerCase(java.util.Locale.ROOT);
     }
 }

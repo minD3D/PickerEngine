@@ -6,6 +6,7 @@ import org.engine.pickerengine.dto.InstagramKeywordResponse;
 import org.engine.pickerengine.dto.InstagramProfile;
 import org.engine.pickerengine.dto.InstagramProfileWithPosts;
 import org.engine.pickerengine.dto.InstagramRequest;
+import org.engine.pickerengine.service.InstagramDmService;
 import org.engine.pickerengine.service.InstagramKeywordService;
 import org.engine.pickerengine.service.InstagramService;
 import org.engine.pickerengine.service.InstagramPromptService;
@@ -14,6 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import org.engine.pickerengine.dto.InstagramDmRequest;
+import org.engine.pickerengine.dto.InstagramDmResponse;
 
 import java.util.List;
 
@@ -24,14 +28,17 @@ public class InstagramController {
     private final InstagramService instagramService;
     private final InstagramKeywordService instagramKeywordService;
     private final InstagramPromptService instagramPromptService;
+    private final InstagramDmService instagramDmService;
 
     public InstagramController(
             InstagramService instagramService,
             InstagramKeywordService instagramKeywordService,
-            InstagramPromptService instagramPromptService) {
+            InstagramPromptService instagramPromptService,
+            InstagramDmService instagramDmService) {
         this.instagramService = instagramService;
         this.instagramKeywordService = instagramKeywordService;
         this.instagramPromptService = instagramPromptService;
+        this.instagramDmService = instagramDmService;
     }
 
     @PostMapping("/profiles")
@@ -51,7 +58,18 @@ public class InstagramController {
 
     @PostMapping("/extract-keywords")
     public InstagramKeywordResponse getKeywords(@RequestBody InstagramKeywordRequest request) {
-        return instagramKeywordService.extractKeywords(request.userId(), request.version());
+        return instagramKeywordService.extractKeywords(
+                request.userId(),
+                request.version(),
+                request.ignoreCacheOrDefault());
+    }
+
+    @PostMapping("/generate-dm")
+    public InstagramDmResponse generateDm(@RequestBody InstagramDmRequest request) {
+        return instagramDmService.generateDm(
+                request.userId(),
+                request.version(),
+                request.ignoreCacheOrDefault());
     }
 
     @PostMapping("/keyword-prompt")
