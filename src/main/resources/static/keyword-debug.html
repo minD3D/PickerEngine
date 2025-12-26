@@ -780,6 +780,7 @@
 
       function populateSelect(selectEl, versions, fallback, preferred) {
         selectEl.innerHTML = "";
+        let preferredFound = false;
         if (!versions || versions.length === 0) {
           const option = document.createElement("option");
           option.value = fallback;
@@ -789,7 +790,13 @@
           versions.forEach((version, index) => {
             const option = document.createElement("option");
             option.value = version;
-            option.textContent = version + (index === 0 ? " (default)" : "");
+            if (preferred && version === preferred) {
+              option.textContent = version + " (default)";
+              option.selected = true;
+              preferredFound = true;
+            } else {
+              option.textContent = version + (!preferred && index === 0 ? " (default)" : "");
+            }
             selectEl.appendChild(option);
           });
         }
@@ -797,7 +804,7 @@
         custom.value = "custom";
         custom.textContent = "custom";
         selectEl.appendChild(custom);
-        if (preferred) {
+        if (preferred && !preferredFound) {
           const match = Array.from(selectEl.options).some((option) => option.value === preferred);
           if (match) {
             selectEl.value = preferred;
