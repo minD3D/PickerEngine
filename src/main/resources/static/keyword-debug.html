@@ -761,10 +761,10 @@
           const response = await fetch("/instagram/keyword-versions");
           const versions = response.ok ? await response.json() : [];
           populateSelect(keywordVersionSelect, versions, "v2");
-          populateSelect(dmKeywordVersionSelect, versions, "v2");
+          populateSelect(dmKeywordVersionSelect, versions, "v2", "v3");
         } catch (err) {
           populateSelect(keywordVersionSelect, [], "v2");
-          populateSelect(dmKeywordVersionSelect, [], "v2");
+          populateSelect(dmKeywordVersionSelect, [], "v2", "v3");
         }
 
         try {
@@ -778,7 +778,7 @@
         updateRequestPreviews();
       }
 
-      function populateSelect(selectEl, versions, fallback) {
+      function populateSelect(selectEl, versions, fallback, preferred) {
         selectEl.innerHTML = "";
         if (!versions || versions.length === 0) {
           const option = document.createElement("option");
@@ -797,6 +797,12 @@
         custom.value = "custom";
         custom.textContent = "custom";
         selectEl.appendChild(custom);
+        if (preferred) {
+          const match = Array.from(selectEl.options).some((option) => option.value === preferred);
+          if (match) {
+            selectEl.value = preferred;
+          }
+        }
       }
 
       function copyTextToClipboard(text) {
