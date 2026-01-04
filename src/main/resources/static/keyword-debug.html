@@ -341,6 +341,34 @@
         min-height: 80px;
       }
 
+      .list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .list-item {
+        border: 1px solid rgba(36, 79, 93, 0.15);
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 14px;
+        padding: 12px 14px;
+      }
+
+      .list-primary {
+        font-weight: 600;
+      }
+
+      .list-meta {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .list-empty {
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
       @keyframes fadeUp {
         from {
           opacity: 0;
@@ -389,8 +417,8 @@
           <div class="eyebrow">Instagram API Debug v2</div>
           <h1>Debug Console</h1>
           <p>
-            Two purpose-built tabs for API testing. Use Keyword Extract for prompt debugging
-            and DM Message for end-to-end message generation.
+            Three purpose-built tabs for API testing. Use Keyword Extract for prompt debugging,
+            DM Message for end-to-end message generation, and Keyword Users to inspect search results.
           </p>
         </div>
         <div class="user-box">
@@ -402,6 +430,7 @@
       <div class="tabs" role="tablist">
         <button class="tab-btn active" data-tab="keywords" type="button">Keyword Extract</button>
         <button class="tab-btn" data-tab="dm" type="button">DM Message</button>
+        <button class="tab-btn" data-tab="keyword-users" type="button">Keyword Users</button>
       </div>
 
       <section class="tab-panel active" data-panel="keywords">
@@ -584,6 +613,78 @@
           </div>
         </div>
       </section>
+
+      <section class="tab-panel" data-panel="keyword-users">
+        <div class="grid">
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Request</h2>
+                <span class="badge">GET /instagram/search/keyword/users/expand</span>
+              </div>
+              <div class="field">
+                <label for="keywordQuery">Keyword Query</label>
+                <input
+                  id="keywordQuery"
+                  type="text"
+                  placeholder="e.g. #뷰티 or 뷰티"
+                />
+                <div class="field-note">Include # if you want hashtag-style results.</div>
+              </div>
+              <label class="check">
+                <input id="keywordUserExpand" type="checkbox" checked />
+                expand via hashtag feed
+              </label>
+              <div class="row" id="keywordUserOptions">
+                <div class="field">
+                  <label for="keywordUserMax">Max Users</label>
+                  <input id="keywordUserMax" type="number" min="1" max="200" value="60" />
+                </div>
+                <div class="field">
+                  <label for="keywordUserFeedCount">Feed Count</label>
+                  <input id="keywordUserFeedCount" type="number" min="1" max="50" value="30" />
+                </div>
+                <div class="field">
+                  <label for="keywordUserPages">Pages</label>
+                  <input id="keywordUserPages" type="number" min="1" max="10" value="1" />
+                </div>
+              </div>
+              <div class="actions">
+                <button class="btn" id="keywordUserBtn" type="button">Fetch Users</button>
+              </div>
+              <div class="status" id="keywordUserStatus">Idle.</div>
+              <div class="payload">
+                <div class="payload-header">
+                  <span>Request URL</span>
+                  <button class="copy-btn" data-copy="keyword-users-request" type="button">Copy</button>
+                </div>
+                <textarea id="keywordUserRequestOutput" rows="3" readonly></textarea>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2>Response</h2>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>User List</h3>
+                  <button class="copy-btn" data-copy="keyword-users" type="button">Copy</button>
+                </div>
+                <div class="list" id="keywordUserList"></div>
+              </div>
+              <div class="block">
+                <div class="block-header">
+                  <h3>Raw Response</h3>
+                  <button class="copy-btn" data-copy="keyword-users-raw" type="button">Copy</button>
+                </div>
+                <div class="raw" id="keywordUserRawOutput">Waiting for response...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script>
@@ -618,6 +719,18 @@
       const dmToneChips = document.getElementById("dmToneChips");
       const dmSummaryOutput = document.getElementById("dmSummaryOutput");
       const dmRawOutput = document.getElementById("dmRawOutput");
+
+      const keywordQueryInput = document.getElementById("keywordQuery");
+      const keywordUserExpand = document.getElementById("keywordUserExpand");
+      const keywordUserOptions = document.getElementById("keywordUserOptions");
+      const keywordUserMax = document.getElementById("keywordUserMax");
+      const keywordUserFeedCount = document.getElementById("keywordUserFeedCount");
+      const keywordUserPages = document.getElementById("keywordUserPages");
+      const keywordUserBtn = document.getElementById("keywordUserBtn");
+      const keywordUserStatusEl = document.getElementById("keywordUserStatus");
+      const keywordUserRequestOutput = document.getElementById("keywordUserRequestOutput");
+      const keywordUserList = document.getElementById("keywordUserList");
+      const keywordUserRawOutput = document.getElementById("keywordUserRawOutput");
 
       const tabButtons = document.querySelectorAll(".tab-btn");
       const tabPanels = document.querySelectorAll(".tab-panel");
@@ -686,6 +799,33 @@
         target.value = JSON.stringify(payload, null, 2);
       }
 
+      function buildKeywordUserRequestUrl() {
+        const query = keywordQueryInput.value.trim();
+        if (!query) {
+          return "";
+        }
+        if (!keywordUserExpand.checked) {
+          return "/instagram/search/keyword/users?q=" + encodeURIComponent(query);
+        }
+        const maxUsers = parseInt(keywordUserMax.value, 10);
+        const feedCount = parseInt(keywordUserFeedCount.value, 10);
+        const pages = parseInt(keywordUserPages.value, 10);
+        const resolvedMax = Number.isFinite(maxUsers) && maxUsers > 0 ? maxUsers : 60;
+        const resolvedFeed = Number.isFinite(feedCount) && feedCount > 0 ? feedCount : 30;
+        const resolvedPages = Number.isFinite(pages) && pages > 0 ? pages : 1;
+        const params = new URLSearchParams({
+          q: query,
+          maxUsers: String(resolvedMax),
+          feedCount: String(resolvedFeed),
+          pages: String(resolvedPages),
+        });
+        return "/instagram/search/keyword/users/expand?" + params.toString();
+      }
+
+      function setRequestUrlPreview(target, url) {
+        target.value = url || "";
+      }
+
       function setStatus(target, message, type) {
         target.textContent = message;
         target.className = "status" + (type ? " " + type : "");
@@ -702,6 +842,40 @@
           chip.className = "chip" + (className ? " " + className : "");
           chip.textContent = item;
           target.appendChild(chip);
+        });
+      }
+
+      function renderKeywordUsers(users) {
+        keywordUserList.innerHTML = "";
+        if (!users || users.length === 0) {
+          keywordUserList.innerHTML = "<div class=\"list-empty\">(empty)</div>";
+          return;
+        }
+        users.forEach((user) => {
+          const item = document.createElement("div");
+          item.className = "list-item";
+          const primary = document.createElement("div");
+          primary.className = "list-primary";
+          primary.textContent = user.username || "(unknown)";
+          const meta = document.createElement("div");
+          meta.className = "list-meta";
+          const parts = [];
+          if (user.fullName) {
+            parts.push(user.fullName);
+          }
+          if (typeof user.followerCount === "number") {
+            parts.push("followers " + user.followerCount);
+          }
+          if (user.isVerified) {
+            parts.push("verified");
+          }
+          if (user.isPrivate) {
+            parts.push("private");
+          }
+          meta.textContent = parts.join(" · ");
+          item.appendChild(primary);
+          item.appendChild(meta);
+          keywordUserList.appendChild(item);
         });
       }
 
@@ -774,8 +948,10 @@
         toggleCustomField(keywordVersionSelect, keywordCustomPromptField);
         toggleCustomField(dmKeywordVersionSelect, dmKeywordCustomPromptField);
         toggleCustomField(dmVersionSelect, dmCustomPromptField);
+        keywordUserOptions.classList.toggle("hidden", !keywordUserExpand.checked);
         setRequestPreview(keywordRequestOutput, buildKeywordPayload());
         setRequestPreview(dmRequestOutput, buildDmPayload());
+        setRequestUrlPreview(keywordUserRequestOutput, buildKeywordUserRequestUrl());
         const keywordVersion = resolveVersion(
           keywordVersionSelect,
           lastKeywordVersion,
@@ -928,6 +1104,38 @@
         }
       }
 
+      async function runKeywordUserSearch() {
+        const url = buildKeywordUserRequestUrl();
+        if (!url) {
+          setStatus(keywordUserStatusEl, "Keyword query is required.", "error");
+          return;
+        }
+        setStatus(keywordUserStatusEl, "Searching users...", "info");
+        keywordUserRawOutput.textContent = "Loading...";
+        keywordUserList.innerHTML = "";
+
+        try {
+          const response = await fetch(url);
+          const text = await response.text();
+          keywordUserRawOutput.textContent = text || "(empty response)";
+          if (!response.ok) {
+            setStatus(keywordUserStatusEl, "Request failed: " + response.status, "error");
+            return;
+          }
+          let data = null;
+          try {
+            data = JSON.parse(text);
+          } catch (err) {
+            setStatus(keywordUserStatusEl, "Failed to parse JSON response.", "error");
+            return;
+          }
+          renderKeywordUsers(data);
+          setStatus(keywordUserStatusEl, "User search complete.", "success");
+        } catch (err) {
+          setStatus(keywordUserStatusEl, "Network error: " + err.message, "error");
+        }
+      }
+
       async function loadVersions() {
         try {
           const response = await fetch("/instagram/keyword-versions");
@@ -1038,6 +1246,14 @@
             text = dmRawOutput.textContent;
           } else if (target === "dm-request") {
             text = dmRequestOutput.value;
+          } else if (target === "keyword-users") {
+            text = Array.from(keywordUserList.querySelectorAll(".list-primary"))
+              .map((item) => item.textContent)
+              .join(", ");
+          } else if (target === "keyword-users-raw") {
+            text = keywordUserRawOutput.textContent;
+          } else if (target === "keyword-users-request") {
+            text = keywordUserRequestOutput.value;
           }
 
           if (!text) {
@@ -1050,6 +1266,7 @@
       keywordBtn.addEventListener("click", runKeywordExtraction);
       promptBtn.addEventListener("click", runPromptPreview);
       dmBtn.addEventListener("click", runDmGeneration);
+      keywordUserBtn.addEventListener("click", runKeywordUserSearch);
 
       [
         userIdInput,
@@ -1061,6 +1278,11 @@
         dmVersionSelect,
         customDmPromptInput,
         dmIgnoreCache,
+        keywordQueryInput,
+        keywordUserExpand,
+        keywordUserMax,
+        keywordUserFeedCount,
+        keywordUserPages,
       ].forEach((el) => {
         el.addEventListener("input", updateRequestPreviews);
         el.addEventListener("change", updateRequestPreviews);

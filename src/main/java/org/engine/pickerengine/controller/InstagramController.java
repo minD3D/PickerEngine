@@ -6,6 +6,9 @@ import org.engine.pickerengine.dto.InstagramKeywordResponse;
 import org.engine.pickerengine.dto.InstagramProfile;
 import org.engine.pickerengine.dto.InstagramProfileWithPosts;
 import org.engine.pickerengine.dto.InstagramRequest;
+import org.engine.pickerengine.dto.InstagramSearchResponse;
+import org.engine.pickerengine.dto.InstagramSearchUser;
+import org.engine.pickerengine.dto.InstagramSearchUsersPage;
 import org.engine.pickerengine.service.InstagramDmPromptService;
 import org.engine.pickerengine.service.InstagramDmService;
 import org.engine.pickerengine.service.InstagramKeywordService;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import org.engine.pickerengine.dto.InstagramDmPromptRequest;
@@ -60,6 +64,34 @@ public class InstagramController {
     @PostMapping("/profile-cache")
     public InstagramProfileWithPosts getCachedProfileDetails(@RequestBody InstagramRequest request) {
         return instagramService.fetchCachedProfileWithPosts(request.userId());
+    }
+
+    @GetMapping("/search/keyword")
+    public InstagramSearchResponse searchKeyword(@RequestParam("q") String query) {
+        return instagramService.searchKeyword(query);
+    }
+
+    @GetMapping("/search/keyword/users")
+    public List<InstagramSearchUser> searchKeywordUsers(@RequestParam("q") String query) {
+        return instagramService.searchKeywordUsers(query);
+    }
+
+    @GetMapping("/search/keyword/users/expand")
+    public List<InstagramSearchUser> searchKeywordUsersExpanded(
+            @RequestParam("q") String query,
+            @RequestParam(value = "maxUsers", defaultValue = "60") int maxUsers,
+            @RequestParam(value = "feedCount", defaultValue = "30") int feedCount,
+            @RequestParam(value = "pages", defaultValue = "1") int pages) {
+        return instagramService.searchKeywordUsersExpanded(query, maxUsers, feedCount, pages);
+    }
+
+    @GetMapping("/search/keyword/users/page")
+    public InstagramSearchUsersPage searchKeywordUsersPage(
+            @RequestParam("q") String query,
+            @RequestParam(value = "nextMaxId", required = false) String nextMaxId,
+            @RequestParam(value = "searchSessionId", required = false) String searchSessionId,
+            @RequestParam(value = "rankToken", required = false) String rankToken) {
+        return instagramService.searchKeywordUsersPage(query, nextMaxId, searchSessionId, rankToken);
     }
 
     @PostMapping("/extract-keywords")
