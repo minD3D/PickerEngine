@@ -31,8 +31,6 @@ import org.engine.pickerengine.dto.InstagramDmPromptResponse;
 import org.engine.pickerengine.dto.InstagramDmRequest;
 import org.engine.pickerengine.dto.InstagramDmResponse;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import java.util.List;
 
 @RestController
@@ -115,7 +113,7 @@ public class InstagramController {
     }
 
     @PostMapping("/extract-prices")
-    public JsonNode extractPrices(@RequestBody InstagramPriceRequest request) {
+    public String extractPrices(@RequestBody InstagramPriceRequest request) {
         if (request == null) {
             return instagramPriceService.extractPrices("", "", null, null);
         }

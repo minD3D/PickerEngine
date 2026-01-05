@@ -47,14 +47,14 @@ public class InstagramPriceService {
                 .build();
     }
 
-    public JsonNode extractPrices(String text, String imageUrl, String version, String customPrompt) {
+    public String extractPrices(String text, String imageUrl, String version, String customPrompt) {
         if (apiKey.isBlank()) {
-            return emptyResponse();
+            return "";
         }
         boolean hasText = text != null && !text.isBlank();
         boolean hasImage = imageUrl != null && !imageUrl.isBlank();
         if (!hasText && !hasImage) {
-            return emptyResponse();
+            return "";
         }
         String resolvedVersion = resolvePromptVersion(version);
         String prompt = promptService.buildPromptFromTemplate(text, resolveTemplate(resolvedVersion, customPrompt));
@@ -68,9 +68,9 @@ public class InstagramPriceService {
         return new InstagramPricePromptResponse(resolved, prompt, template);
     }
 
-    private JsonNode callModel(String prompt, String imageUrl) {
+    private String callModel(String prompt, String imageUrl) {
         if (prompt == null || prompt.isBlank()) {
-            return emptyResponse();
+            return "";
         }
         try {
             ObjectNode payload = buildPayload(prompt, imageUrl);
@@ -82,13 +82,12 @@ public class InstagramPriceService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return emptyResponse();
+                return "";
             }
             JsonNode root = OBJECT_MAPPER.readTree(response.body());
-            String text = extractOutputText(root);
-            return parsePriceResponse(text);
+            return extractOutputText(root);
         } catch (Exception ignored) {
-            return emptyResponse();
+            return "";
         }
     }
 
@@ -137,34 +136,113 @@ public class InstagramPriceService {
         if (text == null || text.isBlank()) {
             return emptyResponse();
         }
-        try {
-            JsonNode root = OBJECT_MAPPER.readTree(text);
+        String cleaned = stripBom(text).trim();
+        JsonNode root = tryParseJson(cleaned);
+        if (root != null) {
             return normalizeResponse(root);
-        } catch (Exception ignored) {
-            int objStart = text.indexOf('{');
-            int objEnd = text.lastIndexOf('}');
-            if (objStart >= 0 && objEnd > objStart) {
-                String json = text.substring(objStart, objEnd + 1);
-                try {
-                    JsonNode root = OBJECT_MAPPER.readTree(json);
-                    return normalizeResponse(root);
-                } catch (Exception ignoredAgain) {
-                    return emptyResponse();
-                }
-            }
-            int start = text.indexOf('[');
-            int end = text.lastIndexOf(']');
-            if (start >= 0 && end > start) {
-                String json = text.substring(start, end + 1);
-                try {
-                    JsonNode root = OBJECT_MAPPER.readTree(json);
-                    return normalizeResponse(root);
-                } catch (Exception ignoredAgain) {
-                    return emptyResponse();
-                }
-            }
-            return emptyResponse();
         }
+        String extracted = extractFirstJsonBlock(cleaned);
+        if (extracted != null) {
+            JsonNode extractedNode = tryParseJson(extracted);
+            if (extractedNode != null) {
+                return normalizeResponse(extractedNode);
+            }
+        }
+        int objStart = cleaned.indexOf('{');
+        int objEnd = cleaned.lastIndexOf('}');
+        if (objStart >= 0 && objEnd > objStart) {
+            JsonNode objNode = tryParseJson(cleaned.substring(objStart, objEnd + 1));
+            if (objNode != null) {
+                return normalizeResponse(objNode);
+            }
+        }
+        int arrStart = cleaned.indexOf('[');
+        int arrEnd = cleaned.lastIndexOf(']');
+        if (arrStart >= 0 && arrEnd > arrStart) {
+            JsonNode arrNode = tryParseJson(cleaned.substring(arrStart, arrEnd + 1));
+            if (arrNode != null) {
+                return normalizeResponse(arrNode);
+            }
+        }
+        return emptyResponse();
+    }
+
+    private JsonNode tryParseJson(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return OBJECT_MAPPER.readTree(value);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private String stripBom(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        if (value.charAt(0) == '\uFEFF') {
+            return value.substring(1);
+        }
+        return value;
+    }
+
+    private String extractFirstJsonBlock(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        int length = value.length();
+        for (int i = 0; i < length; i++) {
+            char c = value.charAt(i);
+            if (c == '{' || c == '[') {
+                int end = findJsonBlockEnd(value, i);
+                if (end > i) {
+                    return value.substring(i, end + 1);
+                }
+            }
+        }
+        return null;
+    }
+
+    private int findJsonBlockEnd(String value, int start) {
+        java.util.ArrayDeque<Character> stack = new java.util.ArrayDeque<>();
+        boolean inString = false;
+        boolean escape = false;
+        for (int i = start; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (inString) {
+                if (escape) {
+                    escape = false;
+                    continue;
+                }
+                if (c == '\\') {
+                    escape = true;
+                    continue;
+                }
+                if (c == '"') {
+                    inString = false;
+                }
+                continue;
+            }
+            if (c == '"') {
+                inString = true;
+                continue;
+            }
+            if (c == '{') {
+                stack.push('}');
+            } else if (c == '[') {
+                stack.push(']');
+            } else if (!stack.isEmpty() && c == stack.peek()) {
+                stack.pop();
+                if (stack.isEmpty()) {
+                    return i;
+                }
+            } else if ((c == '}' || c == ']') && stack.isEmpty()) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     private JsonNode normalizeResponse(JsonNode root) {

@@ -760,7 +760,7 @@
               </div>
               <div class="block">
                 <div class="block-header">
-                  <h3>Price JSON</h3>
+                  <h3>Price Output</h3>
                   <button class="copy-btn" data-copy="price-json" type="button">Copy</button>
                 </div>
                 <textarea id="priceOutput" rows="10" readonly></textarea>
@@ -1762,16 +1762,20 @@
             priceOutput.value = "(failed)";
             return;
           }
-          let data = null;
-          try {
-            data = JSON.parse(text);
-          } catch (err) {
-            setStatus(priceStatusEl, "Failed to parse JSON response.", "error");
-            priceOutput.value = "(invalid response)";
+          const trimmed = (text || "").trim();
+          if (!trimmed) {
+            setStatus(priceStatusEl, "Empty response.", "error");
+            priceOutput.value = "(empty)";
             return;
           }
-          priceOutput.value = JSON.stringify(data, null, 2);
-          setStatus(priceStatusEl, "Price extraction complete.", "success");
+          try {
+            const data = JSON.parse(trimmed);
+            priceOutput.value = JSON.stringify(data, null, 2);
+            setStatus(priceStatusEl, "Price extraction complete (JSON parsed).", "success");
+          } catch (err) {
+            priceOutput.value = text;
+            setStatus(priceStatusEl, "Price extraction complete (raw output).", "success");
+          }
         } catch (err) {
           setStatus(priceStatusEl, "Network error: " + err.message, "error");
           priceOutput.value = "(network error)";
