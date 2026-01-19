@@ -12,10 +12,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.io.InputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +28,27 @@ public class InstagramDmService {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final String DEFAULT_MODEL = "gpt-4o-mini";
     private static final String DEFAULT_DM_PROMPT_VERSION = "v1";
+    private static final String DEFAULT_KEYWORDS_PROMPT = """
+            너는 인스타그램 칭찬 DM을 작성하는 마케팅 전문가다.
+
+            [입력 정보]
+            - keywords: {{KEYWORDS}}
+
+            [작성 목표]
+            - 상대가 “내 계정을 제대로 보고 보낸 메시지”라고 느끼게 한다.
+
+            [작성 규칙]
+            1. 키워드를 직접 나열하지 말고 자연스럽게 문장에 흡수할 것
+            2. 첫 문장은 가벼운 관찰 또는 인상으로 시작할 것
+            3. 전체 분량은 3~5문장으로, DM에 어울리는 길이를 유지할 것
+            4. 존댓말을 사용하고 부드럽고 인간적인 톤을 유지할 것
+            5. 평범한 20~30대가 쓸 법한 자연스러운 말투를 사용할 것
+            6. 협업 제안은 하지 않을 것
+            7. 수신자는 1명의 인플루언서로 가정할 것
+
+            [출력 형식]
+            - 인스타그램 DM으로 바로 보낼 수 있는 단일 메시지
+            """;
 
     private final InstagramKeywordService keywordService;
     private final InstagramService instagramService;
@@ -93,17 +116,14 @@ public class InstagramDmService {
             return new InstagramDmResponse("", List.of(), List.of(), List.of(), "");
         }
         List<String> cleanedKeywords = sanitizeKeywords(keywords);
-        InstagramKeywordResponse keywordResponse = new InstagramKeywordResponse(cleanedKeywords, List.of());
-        InstagramProfileWithPosts profileWithPosts = instagramService.fetchProfileWithPosts(null);
-        DmPromptContext context = buildPromptContext(profileWithPosts.profile(), keywordResponse);
-        String prompt = buildPrompt(context, resolvePromptVersion(dmVersion), customDmPrompt);
+        String prompt = buildKeywordsPrompt(cleanedKeywords, resolvePromptVersion(dmVersion), customDmPrompt);
         String message = callModel(prompt);
         return new InstagramDmResponse(
                 message,
-                context.moodKeywords(),
-                context.contentKeywords(),
-                context.toneKeywords(),
-                context.impressionSummary());
+                cleanedKeywords,
+                List.of(),
+                List.of(),
+                "");
     }
 
     private DmPromptContext buildPromptContext(InstagramProfile profile, InstagramKeywordResponse keywords) {
@@ -135,6 +155,28 @@ public class InstagramDmService {
                 .replace("{{CONTENT_KEYWORDS}}", joinKeywords(context.contentKeywords()))
                 .replace("{{TONE_KEYWORDS}}", joinKeywords(context.toneKeywords()))
                 .replace("{{IMPRESSION_SUMMARY}}", context.impressionSummary());
+    }
+
+    private String buildKeywordsPrompt(List<String> keywords, String version, String customPrompt) {
+        String template = customPrompt;
+        if (template == null || template.isBlank()) {
+            template = loadKeywordsTemplate(version);
+        }
+        return template.replace("{{KEYWORDS}}", joinKeywords(keywords));
+    }
+
+    private String loadKeywordsTemplate(String version) {
+        String resolved = resolvePromptVersion(version);
+        String path = "prompts/instagram_dm_keywords_" + resolved + ".txt";
+        try (InputStream stream = InstagramDmService.class.getClassLoader().getResourceAsStream(path)) {
+            if (stream == null) {
+                return DEFAULT_KEYWORDS_PROMPT;
+            }
+            String template = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+            return template.isBlank() ? DEFAULT_KEYWORDS_PROMPT : template;
+        } catch (Exception ignored) {
+            return DEFAULT_KEYWORDS_PROMPT;
+        }
     }
 
     private List<String> sanitizeKeywords(List<String> keywords) {

@@ -1007,8 +1007,7 @@
               <label for="customDmKeywordsPrompt">Custom DM Prompt</label>
               <textarea id="customDmKeywordsPrompt" rows="5" placeholder="Custom DM prompt template."></textarea>
               <div class="field-note">
-                Use {{MOOD_KEYWORDS}}, {{CONTENT_KEYWORDS}}, {{TONE_KEYWORDS}}, {{IMPRESSION_SUMMARY}}
-                placeholders.
+                Use {{KEYWORDS}} placeholder.
               </div>
             </div>
             <div class="actions">
@@ -1038,28 +1037,10 @@
             </div>
             <div class="block">
               <div class="block-header">
-                <h3>Mood Keywords</h3>
+                <h3>Input Keywords</h3>
+                <button class="copy-btn" data-copy="dm-keywords-input" type="button">Copy</button>
               </div>
-              <div class="chips" id="dmKeywordsMoodChips"></div>
-            </div>
-            <div class="block">
-              <div class="block-header">
-                <h3>Content Keywords</h3>
-              </div>
-              <div class="chips" id="dmKeywordsContentChips"></div>
-            </div>
-            <div class="block">
-              <div class="block-header">
-                <h3>Tone Keywords</h3>
-              </div>
-              <div class="chips" id="dmKeywordsToneChips"></div>
-            </div>
-            <div class="block">
-              <div class="block-header">
-                <h3>Impression Summary</h3>
-                <button class="copy-btn" data-copy="dm-keywords-summary" type="button">Copy</button>
-              </div>
-              <textarea id="dmKeywordsSummaryOutput" rows="4" readonly></textarea>
+              <div class="chips" id="dmKeywordsInputChips"></div>
             </div>
             <div class="block">
               <div class="block-header">
@@ -1376,14 +1357,11 @@
     const dmKeywordsCustomPromptField = document.getElementById("dmKeywordsCustomPromptField");
     const customDmKeywordsPromptInput = document.getElementById("customDmKeywordsPrompt");
     const dmKeywordsBtn = document.getElementById("dmKeywordsBtn");
-    const dmKeywordsStatusEl = document.getElementById("dmKeywordsStatus");
-    const dmKeywordsRequestOutput = document.getElementById("dmKeywordsRequestOutput");
-    const dmKeywordsOutput = document.getElementById("dmKeywordsOutput");
-    const dmKeywordsMoodChips = document.getElementById("dmKeywordsMoodChips");
-    const dmKeywordsContentChips = document.getElementById("dmKeywordsContentChips");
-    const dmKeywordsToneChips = document.getElementById("dmKeywordsToneChips");
-    const dmKeywordsSummaryOutput = document.getElementById("dmKeywordsSummaryOutput");
-    const dmKeywordsRawOutput = document.getElementById("dmKeywordsRawOutput");
+      const dmKeywordsStatusEl = document.getElementById("dmKeywordsStatus");
+      const dmKeywordsRequestOutput = document.getElementById("dmKeywordsRequestOutput");
+      const dmKeywordsOutput = document.getElementById("dmKeywordsOutput");
+      const dmKeywordsInputChips = document.getElementById("dmKeywordsInputChips");
+      const dmKeywordsRawOutput = document.getElementById("dmKeywordsRawOutput");
     const dmBtn = document.getElementById("dmBtn");
     const dmStatusEl = document.getElementById("dmStatus");
     const dmOutput = document.getElementById("dmOutput");
@@ -1445,9 +1423,30 @@
     const tabButtons = document.querySelectorAll(".tab-btn");
     const tabPanels = document.querySelectorAll(".tab-panel");
     const copyButtons = document.querySelectorAll("[data-copy]");
-    const DEFAULT_KEYWORD_VERSION = "v2";
-    const DEFAULT_PRICE_VERSION = "v1";
-    const DEFAULT_DM_VERSION = "v1";
+      const DEFAULT_KEYWORD_VERSION = "v2";
+      const DEFAULT_PRICE_VERSION = "v1";
+      const DEFAULT_DM_VERSION = "v1";
+      const DEFAULT_DM_KEYWORDS_TEMPLATE = `
+너는 인스타그램 칭찬 DM을 작성하는 마케팅 전문가다.
+
+[입력 정보]
+- keywords: {{KEYWORDS}}
+
+[작성 목표]
+- 상대가 “내 계정을 제대로 보고 보낸 메시지”라고 느끼게 한다.
+
+[작성 규칙]
+1. 키워드를 직접 나열하지 말고 자연스럽게 문장에 흡수할 것
+2. 첫 문장은 가벼운 관찰 또는 인상으로 시작할 것
+3. 전체 분량은 3~5문장으로, DM에 어울리는 길이를 유지할 것
+4. 존댓말을 사용하고 부드럽고 인간적인 톤을 유지할 것
+5. 평범한 20~30대가 쓸 법한 자연스러운 말투를 사용할 것
+6. 협업 제안은 하지 않을 것
+7. 수신자는 1명의 인플루언서로 가정할 것
+
+[출력 형식]
+- 인스타그램 DM으로 바로 보낼 수 있는 단일 메시지
+`.trim();
     let lastKeywordVersion = DEFAULT_KEYWORD_VERSION;
     let lastPriceVersion = DEFAULT_PRICE_VERSION;
     let lastDmKeywordVersion = DEFAULT_KEYWORD_VERSION;
@@ -2080,21 +2079,31 @@
       setRequestPreview(previewTarget, payloadBuilder());
     }
 
-    async function fillDmCustomPrompt(selectEl, inputEl, version, previewTarget, payloadBuilder) {
-      if (selectEl.value !== "custom") {
-        return;
+      async function fillDmCustomPrompt(selectEl, inputEl, version, previewTarget, payloadBuilder) {
+        if (selectEl.value !== "custom") {
+          return;
+        }
+        if (inputEl.value.trim()) {
+          return;
+        }
+        const template = await fetchDmTemplate(version);
+        if (!template) {
+          return;
+        }
+        inputEl.value = template;
+        setRequestPreview(previewTarget, payloadBuilder());
       }
-      if (inputEl.value.trim()) {
-        return;
+
+      function fillDmKeywordsCustomPrompt(selectEl, inputEl, previewTarget, payloadBuilder) {
+        if (selectEl.value !== "custom") {
+          return;
+        }
+        if (inputEl.value.trim()) {
+          return;
+        }
+        inputEl.value = DEFAULT_DM_KEYWORDS_TEMPLATE;
+        setRequestPreview(previewTarget, payloadBuilder());
       }
-      const template = await fetchDmTemplate(version);
-      if (!template) {
-        return;
-      }
-      inputEl.value = template;
-      setRequestPreview(previewTarget, payloadBuilder());
-      setRequestPreview(dmKeywordsRequestOutput, buildDmKeywordsPayload());
-    }
 
     function updateRequestPreviews() {
       syncLastVersions();
@@ -2131,11 +2140,6 @@
         DEFAULT_KEYWORD_VERSION,
       );
       const dmVersion = resolveVersion(dmVersionSelect, lastDmVersion, DEFAULT_DM_VERSION);
-      const dmKeywordsVersion = resolveVersion(
-        dmKeywordsVersionSelect,
-        lastDmKeywordsVersion,
-        DEFAULT_DM_VERSION,
-      );
       void fillKeywordCustomPrompt(
         keywordVersionSelect,
         customKeywordPromptInput,
@@ -2164,10 +2168,9 @@
         dmRequestOutput,
         buildDmPayload,
       );
-      void fillDmCustomPrompt(
+      fillDmKeywordsCustomPrompt(
         dmKeywordsVersionSelect,
         customDmKeywordsPromptInput,
-        dmKeywordsVersion,
         dmKeywordsRequestOutput,
         buildDmKeywordsPayload,
       );
@@ -2569,15 +2572,9 @@
 
     async function runDmKeywordsGeneration() {
       syncLastVersions();
-      const dmKeywordsVersion = resolveVersion(
-        dmKeywordsVersionSelect,
-        lastDmKeywordsVersion,
-        DEFAULT_DM_VERSION,
-      );
-      await fillDmCustomPrompt(
+      fillDmKeywordsCustomPrompt(
         dmKeywordsVersionSelect,
         customDmKeywordsPromptInput,
-        dmKeywordsVersion,
         dmKeywordsRequestOutput,
         buildDmKeywordsPayload,
       );
@@ -2590,10 +2587,7 @@
       setStatus(dmKeywordsStatusEl, "Generating DM from keywords...", "info");
       dmKeywordsOutput.value = "Loading...";
       dmKeywordsRawOutput.textContent = "Loading...";
-      dmKeywordsSummaryOutput.value = "";
-      dmKeywordsMoodChips.innerHTML = "";
-      dmKeywordsContentChips.innerHTML = "";
-      dmKeywordsToneChips.innerHTML = "";
+      renderChips(dmKeywordsInputChips, payload.keywords, "");
 
       try {
         const response = await fetch("/instagram/generate-dm-from-keywords", {
@@ -2617,10 +2611,6 @@
           return;
         }
         dmKeywordsOutput.value = data.message || "(empty message)";
-        renderChips(dmKeywordsMoodChips, data.moodKeywords, "");
-        renderChips(dmKeywordsContentChips, data.contentKeywords, "");
-        renderChips(dmKeywordsToneChips, data.toneKeywords, "alt");
-        dmKeywordsSummaryOutput.value = data.impressionSummary || "(empty summary)";
         setStatus(dmKeywordsStatusEl, "DM generation complete.", "success");
       } catch (err) {
         setStatus(dmKeywordsStatusEl, "Network error: " + err.message, "error");
@@ -2942,8 +2932,10 @@
           text = dmKeywordsOutput.value;
         } else if (target === "dm-summary") {
           text = dmSummaryOutput.value;
-        } else if (target === "dm-keywords-summary") {
-          text = dmKeywordsSummaryOutput.value;
+        } else if (target === "dm-keywords-input") {
+          text = Array.from(dmKeywordsInputChips.querySelectorAll(".chip"))
+            .map((chip) => chip.textContent)
+            .join(", ");
         } else if (target === "dm-prompt") {
           text = dmPromptOutput.value;
         } else if (target === "dm-raw") {
