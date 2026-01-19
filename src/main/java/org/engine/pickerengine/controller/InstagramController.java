@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import org.engine.pickerengine.dto.InstagramDmPromptRequest;
 import org.engine.pickerengine.dto.InstagramDmPromptResponse;
+import org.engine.pickerengine.dto.InstagramDmKeywordsRequest;
 import org.engine.pickerengine.dto.InstagramDmRequest;
 import org.engine.pickerengine.dto.InstagramDmResponse;
 
@@ -141,6 +142,14 @@ public class InstagramController {
                 request.dmVersionOrDefault(),
                 request.customDmPrompt(),
                 request.ignoreCacheOrDefault());
+    }
+
+    @PostMapping("/generate-dm-from-keywords")
+    public InstagramDmResponse generateDmFromKeywords(@RequestBody InstagramDmKeywordsRequest request) {
+        return instagramDmService.generateDmFromKeywords(
+                request.keywords(),
+                request.dmVersionOrDefault(),
+                request.customDmPrompt());
     }
 
     @PostMapping("/keyword-prompt")

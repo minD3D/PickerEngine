@@ -85,6 +85,27 @@ public class InstagramDmService {
                 context.impressionSummary());
     }
 
+    public InstagramDmResponse generateDmFromKeywords(
+            List<String> keywords,
+            String dmVersion,
+            String customDmPrompt) {
+        if (apiKey.isBlank()) {
+            return new InstagramDmResponse("", List.of(), List.of(), List.of(), "");
+        }
+        List<String> cleanedKeywords = sanitizeKeywords(keywords);
+        InstagramKeywordResponse keywordResponse = new InstagramKeywordResponse(cleanedKeywords, List.of());
+        InstagramProfileWithPosts profileWithPosts = instagramService.fetchProfileWithPosts(null);
+        DmPromptContext context = buildPromptContext(profileWithPosts.profile(), keywordResponse);
+        String prompt = buildPrompt(context, resolvePromptVersion(dmVersion), customDmPrompt);
+        String message = callModel(prompt);
+        return new InstagramDmResponse(
+                message,
+                context.moodKeywords(),
+                context.contentKeywords(),
+                context.toneKeywords(),
+                context.impressionSummary());
+    }
+
     private DmPromptContext buildPromptContext(InstagramProfile profile, InstagramKeywordResponse keywords) {
         List<String> keywordList = keywords == null ? List.of() : keywords.keywords();
         List<String> categoryList = keywords == null ? List.of() : keywords.category();
@@ -114,6 +135,23 @@ public class InstagramDmService {
                 .replace("{{CONTENT_KEYWORDS}}", joinKeywords(context.contentKeywords()))
                 .replace("{{TONE_KEYWORDS}}", joinKeywords(context.toneKeywords()))
                 .replace("{{IMPRESSION_SUMMARY}}", context.impressionSummary());
+    }
+
+    private List<String> sanitizeKeywords(List<String> keywords) {
+        if (keywords == null || keywords.isEmpty()) {
+            return List.of();
+        }
+        List<String> cleaned = new ArrayList<>();
+        for (String keyword : keywords) {
+            if (keyword == null) {
+                continue;
+            }
+            String trimmed = keyword.trim();
+            if (!trimmed.isBlank()) {
+                cleaned.add(trimmed);
+            }
+        }
+        return cleaned;
     }
 
     private void splitKeywords(List<String> keywords, List<String> content, List<String> tone) {
