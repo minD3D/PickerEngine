@@ -270,6 +270,12 @@
         border: 1px solid rgba(36, 79, 93, 0.2);
       }
 
+      .btn.danger {
+        background: rgba(177, 70, 52, 0.15);
+        color: #7f2b20;
+        border: 1px solid rgba(177, 70, 52, 0.4);
+      }
+
       .status {
         margin-top: 10px;
         font-size: 0.88rem;
@@ -286,6 +292,41 @@
 
       .payload {
         margin-top: 16px;
+      }
+
+      .stat-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 12px;
+        margin-top: 14px;
+      }
+
+      .stat-card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.7);
+      }
+
+      .stat-card.alert {
+        border-color: rgba(177, 70, 52, 0.35);
+        background: rgba(177, 70, 52, 0.08);
+      }
+
+      .stat-label {
+        display: block;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        margin-bottom: 6px;
+      }
+
+      .stat-value {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: var(--ink);
+        word-break: break-word;
       }
 
       .payload-header {
@@ -526,6 +567,7 @@
         <button class="tab-btn" data-tab="dm" type="button">DM Message</button>
         <button class="tab-btn" data-tab="search" type="button">Search</button>
         <button class="tab-btn" data-tab="featuring" type="button">Featuring</button>
+        <button class="tab-btn" data-tab="sync" type="button">Influencer Sync</button>
       </div>
 
       <section class="tab-panel active" data-panel="profiles">
@@ -1138,6 +1180,70 @@
           </div>
         </div>
       </section>
+
+      <section class="tab-panel" data-panel="sync">
+        <div class="grid">
+          <div>
+              <div class="card">
+                <div class="card-header">
+                  <h2>Run All Sync</h2>
+                  <span class="badge">POST /instagram/influencer-sync/run-all | POST /instagram/influencer-sync/stop | GET /instagram/influencer-sync/status</span>
+                </div>
+                <div class="actions">
+                  <button class="btn" id="syncRunAllBtn" type="button">Trigger Run-All</button>
+                  <button class="btn danger" id="syncStopBtn" type="button">Stop Sync</button>
+                  <button class="btn secondary" id="syncStatusBtn" type="button">Refresh Status</button>
+                </div>
+              <div class="stat-grid">
+                <div class="stat-card">
+                  <span class="stat-label">Running</span>
+                  <span class="stat-value" id="syncStatRunning">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Mode</span>
+                  <span class="stat-value" id="syncStatMode">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Last Updated</span>
+                  <span class="stat-value" id="syncStatUpdated">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Last Fetched</span>
+                  <span class="stat-value" id="syncStatFetched">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Last Batches</span>
+                  <span class="stat-value" id="syncStatBatches">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Offset</span>
+                  <span class="stat-value" id="syncStatOffset">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Last Started</span>
+                  <span class="stat-value" id="syncStatStarted">-</span>
+                </div>
+                <div class="stat-card">
+                  <span class="stat-label">Last Finished</span>
+                  <span class="stat-value" id="syncStatFinished">-</span>
+                </div>
+                <div class="stat-card" id="syncStatErrorCard">
+                  <span class="stat-label">Last Error</span>
+                  <span class="stat-value" id="syncStatError">-</span>
+                </div>
+              </div>
+              <div class="status" id="syncStatus">Idle.</div>
+              <div class="payload">
+                <div class="payload-header">
+                  <span>Status JSON</span>
+                  <button class="copy-btn" data-copy="sync-status" type="button">Copy</button>
+                </div>
+                <textarea id="syncStatusOutput" rows="10" readonly></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <script>
@@ -1243,6 +1349,21 @@
       const featuringRequestOutput = document.getElementById("featuringRequestOutput");
       const featuringHeadersOutput = document.getElementById("featuringHeadersOutput");
       const featuringRawOutput = document.getElementById("featuringRawOutput");
+      const syncRunAllBtn = document.getElementById("syncRunAllBtn");
+      const syncStopBtn = document.getElementById("syncStopBtn");
+      const syncStatusBtn = document.getElementById("syncStatusBtn");
+      const syncStatusEl = document.getElementById("syncStatus");
+      const syncStatusOutput = document.getElementById("syncStatusOutput");
+      const syncStatRunning = document.getElementById("syncStatRunning");
+      const syncStatMode = document.getElementById("syncStatMode");
+      const syncStatUpdated = document.getElementById("syncStatUpdated");
+      const syncStatFetched = document.getElementById("syncStatFetched");
+      const syncStatBatches = document.getElementById("syncStatBatches");
+      const syncStatOffset = document.getElementById("syncStatOffset");
+      const syncStatStarted = document.getElementById("syncStatStarted");
+      const syncStatFinished = document.getElementById("syncStatFinished");
+      const syncStatError = document.getElementById("syncStatError");
+      const syncStatErrorCard = document.getElementById("syncStatErrorCard");
 
       const tabButtons = document.querySelectorAll(".tab-btn");
       const tabPanels = document.querySelectorAll(".tab-panel");
@@ -2390,6 +2511,99 @@
         }
       }
 
+      async function runInfluencerSyncAll() {
+        setStatus(syncStatusEl, "Starting run-all sync...", "info");
+        try {
+          const response = await fetch("/instagram/influencer-sync/run-all", { method: "POST" });
+          const text = await response.text();
+          if (!response.ok) {
+            setStatus(syncStatusEl, "Request failed: " + response.status, "error");
+            syncStatusOutput.value = text || "(failed)";
+            return;
+          }
+          const data = text ? JSON.parse(text) : {};
+          syncStatusOutput.value = JSON.stringify(data.status || {}, null, 2);
+          renderSyncStatus(data.status || {});
+          if (data.started) {
+            setStatus(syncStatusEl, "Run-all started.", "success");
+          } else {
+            setStatus(syncStatusEl, "Sync already running.", "warning");
+          }
+        } catch (err) {
+          setStatus(syncStatusEl, "Network error: " + err.message, "error");
+        }
+      }
+
+      async function runInfluencerSyncStop() {
+        setStatus(syncStatusEl, "Stopping sync...", "info");
+        try {
+          const response = await fetch("/instagram/influencer-sync/stop", { method: "POST" });
+          const text = await response.text();
+          if (!response.ok) {
+            setStatus(syncStatusEl, "Request failed: " + response.status, "error");
+            syncStatusOutput.value = text || "(failed)";
+            return;
+          }
+          const data = text ? JSON.parse(text) : {};
+          syncStatusOutput.value = JSON.stringify(data.status || {}, null, 2);
+          renderSyncStatus(data.status || {});
+          if (data.stopping) {
+            setStatus(syncStatusEl, "Stop requested.", "success");
+          } else {
+            setStatus(syncStatusEl, "No running sync to stop.", "warning");
+          }
+        } catch (err) {
+          setStatus(syncStatusEl, "Network error: " + err.message, "error");
+        }
+      }
+
+      async function fetchInfluencerSyncStatus() {
+        setStatus(syncStatusEl, "Loading sync status...", "info");
+        try {
+          const response = await fetch("/instagram/influencer-sync/status");
+          const text = await response.text();
+          if (!response.ok) {
+            setStatus(syncStatusEl, "Request failed: " + response.status, "error");
+            syncStatusOutput.value = text || "(failed)";
+            return;
+          }
+          const data = text ? JSON.parse(text) : {};
+          syncStatusOutput.value = JSON.stringify(data, null, 2);
+          renderSyncStatus(data);
+          setStatus(syncStatusEl, "Status loaded.", "success");
+        } catch (err) {
+          setStatus(syncStatusEl, "Network error: " + err.message, "error");
+        }
+      }
+
+      function formatNumber(value) {
+        if (value === null || value === undefined) {
+          return "-";
+        }
+        if (Number.isNaN(Number(value))) {
+          return String(value);
+        }
+        return Number(value).toLocaleString();
+      }
+
+      function renderSyncStatus(status) {
+        const data = status || {};
+        syncStatRunning.textContent = data.running ? "Yes" : "No";
+        syncStatMode.textContent = data.mode || "-";
+        syncStatUpdated.textContent = formatNumber(data.lastRunUpdated);
+        syncStatFetched.textContent = formatNumber(data.lastRunFetched);
+        syncStatBatches.textContent = formatNumber(data.lastRunBatches);
+        syncStatOffset.textContent = formatNumber(data.offset);
+        syncStatStarted.textContent = data.lastRunStartedAt || "-";
+        syncStatFinished.textContent = data.lastRunFinishedAt || "-";
+        syncStatError.textContent = data.lastError || "-";
+        if (data.lastError) {
+          syncStatErrorCard.classList.add("alert");
+        } else {
+          syncStatErrorCard.classList.remove("alert");
+        }
+      }
+
       function runFeaturingCurlPrefill() {
         const parsed = parseCurlInput(featuringCurl.value || "");
         if (!parsed.url && !parsed.cookie && !parsed.workspace && !parsed.workspaceFromCookie) {
@@ -2572,6 +2786,8 @@
             text = featuringHeadersOutput.value;
           } else if (target === "featuring-raw") {
             text = rawText(featuringRawOutput);
+          } else if (target === "sync-status") {
+            text = syncStatusOutput.value;
           }
 
           if (!text) {
@@ -2594,6 +2810,9 @@
       keywordUserBtn.addEventListener("click", runKeywordUserSearch);
       featuringBtn.addEventListener("click", runFeaturingRequest);
       featuringParseBtn.addEventListener("click", runFeaturingCurlPrefill);
+      syncRunAllBtn.addEventListener("click", runInfluencerSyncAll);
+      syncStopBtn.addEventListener("click", runInfluencerSyncStop);
+      syncStatusBtn.addEventListener("click", fetchInfluencerSyncStatus);
       keywordVersionsBtn.addEventListener("click", loadVersions);
       priceVersionsBtn.addEventListener("click", loadVersions);
       dmVersionsBtn.addEventListener("click", loadVersions);
@@ -2636,6 +2855,7 @@
       setBatchControls(false);
       loadFeaturingDefaults();
       loadVersions();
+      fetchInfluencerSyncStatus();
     </script>
   </body>
 </html>

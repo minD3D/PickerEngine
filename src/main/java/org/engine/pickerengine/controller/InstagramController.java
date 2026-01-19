@@ -20,6 +20,7 @@ import org.engine.pickerengine.service.InstagramProfileInsightsService;
 import org.engine.pickerengine.service.InstagramPricePromptService;
 import org.engine.pickerengine.service.InstagramPriceService;
 import org.engine.pickerengine.service.InstagramService;
+import org.engine.pickerengine.service.InstagramInfluencerSyncService;
 import org.engine.pickerengine.service.InstagramPromptService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,7 +34,9 @@ import org.engine.pickerengine.dto.InstagramDmPromptResponse;
 import org.engine.pickerengine.dto.InstagramDmRequest;
 import org.engine.pickerengine.dto.InstagramDmResponse;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/instagram")
@@ -47,6 +50,7 @@ public class InstagramController {
     private final InstagramPriceService instagramPriceService;
     private final InstagramPricePromptService instagramPricePromptService;
     private final InstagramProfileInsightsService instagramProfileInsightsService;
+    private final InstagramInfluencerSyncService instagramInfluencerSyncService;
 
     public InstagramController(
             InstagramService instagramService,
@@ -56,7 +60,8 @@ public class InstagramController {
             InstagramDmPromptService instagramDmPromptService,
             InstagramPriceService instagramPriceService,
             InstagramPricePromptService instagramPricePromptService,
-            InstagramProfileInsightsService instagramProfileInsightsService) {
+            InstagramProfileInsightsService instagramProfileInsightsService,
+            InstagramInfluencerSyncService instagramInfluencerSyncService) {
         this.instagramService = instagramService;
         this.instagramKeywordService = instagramKeywordService;
         this.instagramPromptService = instagramPromptService;
@@ -65,6 +70,7 @@ public class InstagramController {
         this.instagramPriceService = instagramPriceService;
         this.instagramPricePromptService = instagramPricePromptService;
         this.instagramProfileInsightsService = instagramProfileInsightsService;
+        this.instagramInfluencerSyncService = instagramInfluencerSyncService;
     }
 
     @PostMapping("/profiles")
@@ -80,6 +86,29 @@ public class InstagramController {
     @GetMapping("/profile-by-username")
     public InstagramProfileInsights getProfileByUsername(@RequestParam("username") String username) {
         return instagramProfileInsightsService.fetchInsights(username);
+    }
+
+    @PostMapping("/influencer-sync/run-all")
+    public Map<String, Object> runInfluencerSyncAll() {
+        boolean started = instagramInfluencerSyncService.triggerRunAllAsync();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("started", started);
+        payload.put("status", instagramInfluencerSyncService.getStatus());
+        return payload;
+    }
+
+    @PostMapping("/influencer-sync/stop")
+    public Map<String, Object> stopInfluencerSync() {
+        boolean stopping = instagramInfluencerSyncService.requestStop();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("stopping", stopping);
+        payload.put("status", instagramInfluencerSyncService.getStatus());
+        return payload;
+    }
+
+    @GetMapping("/influencer-sync/status")
+    public InstagramInfluencerSyncService.SyncStatus getInfluencerSyncStatus() {
+        return instagramInfluencerSyncService.getStatus();
     }
 
     @PostMapping("/profile-cache")

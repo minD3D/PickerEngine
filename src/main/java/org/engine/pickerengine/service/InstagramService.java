@@ -16,10 +16,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.net.CookieManager;
-import java.net.CookiePolicy;
-import java.net.CookieStore;
-import java.net.HttpCookie;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -35,6 +31,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Service
 public class InstagramService {
@@ -62,12 +62,33 @@ public class InstagramService {
 
     private final String sessionId;
     private final int maxPosts;
+    private final long httpRateLimitMs;
+    private final int httpMaxConcurrency;
+    private final int httpMaxRetries;
+    private final long httpBackoffMs;
+    private final long httpMaxBackoffMs;
+    private final int httpCircuitBreakerThreshold;
+    private final long httpCircuitBreakerCooldownMs;
+    private final long httpTtlCacheMs;
     private final HttpClient httpClient;
     private final InstagramCacheService cacheService;
+    private final AtomicLong httpCooldownUntil = new AtomicLong(0);
+    private final AtomicInteger consecutive429 = new AtomicInteger(0);
+    private final InstagramHttpRateLimiter httpRateLimiter;
+    private final SimpleTtlCache<String, JsonNode> userNodeCache;
+    private final SimpleTtlCache<String, List<InstagramPost>> userPostsCache;
 
     public InstagramService(
             @Value("${instagram.sessionid:}") String sessionId,
             @Value("${instagram.max-posts:18}") int maxPosts,
+            @Value("${instagram.http.rate-limit-ms:1000}") long httpRateLimitMs,
+            @Value("${instagram.http.max-concurrency:1}") int httpMaxConcurrency,
+            @Value("${instagram.http.max-retries:2}") int httpMaxRetries,
+            @Value("${instagram.http.backoff-ms:30000}") long httpBackoffMs,
+            @Value("${instagram.http.max-backoff-ms:180000}") long httpMaxBackoffMs,
+            @Value("${instagram.http.circuit-breaker.threshold:3}") int httpCircuitBreakerThreshold,
+            @Value("${instagram.http.circuit-breaker.cooldown-ms:120000}") long httpCircuitBreakerCooldownMs,
+            @Value("${instagram.http.ttl-cache-ms:0}") long httpTtlCacheMs,
             InstagramCacheService cacheService) {
         String resolved = sessionId;
         if (resolved == null || resolved.isBlank()) {
@@ -75,8 +96,19 @@ public class InstagramService {
         }
         this.sessionId = resolved == null ? "" : resolved.trim();
         this.maxPosts = Math.max(0, maxPosts);
+        this.httpRateLimitMs = Math.max(0, httpRateLimitMs);
+        this.httpMaxConcurrency = Math.max(1, httpMaxConcurrency);
+        this.httpMaxRetries = Math.max(0, httpMaxRetries);
+        this.httpBackoffMs = Math.max(0, httpBackoffMs);
+        this.httpMaxBackoffMs = Math.max(this.httpBackoffMs, httpMaxBackoffMs);
+        this.httpCircuitBreakerThreshold = Math.max(0, httpCircuitBreakerThreshold);
+        this.httpCircuitBreakerCooldownMs = Math.max(0, httpCircuitBreakerCooldownMs);
+        this.httpTtlCacheMs = Math.max(0, httpTtlCacheMs);
         this.httpClient = buildHttpClient();
         this.cacheService = cacheService;
+        this.httpRateLimiter = new InstagramHttpRateLimiter(this.httpMaxConcurrency, this.httpRateLimitMs);
+        this.userNodeCache = this.httpTtlCacheMs > 0 ? new SimpleTtlCache<>(this.httpTtlCacheMs) : null;
+        this.userPostsCache = this.httpTtlCacheMs > 0 ? new SimpleTtlCache<>(this.httpTtlCacheMs) : null;
     }
 
     public List<InstagramProfile> fetchProfiles(String userId) {
@@ -127,7 +159,7 @@ public class InstagramService {
                 .build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithBackoff(request);
             if (response.statusCode() == 404) {
                 return emptySearchResponse(normalized);
             }
@@ -206,13 +238,17 @@ public class InstagramService {
         if (userId == null || userId.isBlank() || sessionId.isBlank()) {
             return null;
         }
+        JsonNode cached = getCachedUserNode(userId);
+        if (cached != null) {
+            return cached;
+        }
         URI uri = URI.create(String.format(PROFILE_ENDPOINT, userId));
         HttpRequest request = baseRequest(uri, "https://www.instagram.com/" + userId + "/")
                 .GET()
                 .build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithBackoff(request);
             if (response.statusCode() == 404) {
                 return null;
             }
@@ -220,7 +256,9 @@ public class InstagramService {
                 return null;
             }
             JsonNode root = OBJECT_MAPPER.readTree(response.body());
-            return extractUserNode(root);
+            JsonNode user = extractUserNode(root);
+            cacheUserNode(userId, user);
+            return user;
         } catch (Exception ignored) {
             return null;
         }
@@ -234,13 +272,17 @@ public class InstagramService {
         if (userId == null || userId.isBlank()) {
             return List.of();
         }
+        List<InstagramPost> cached = getCachedUserPosts(userId);
+        if (cached != null) {
+            return cached;
+        }
         URI uri = URI.create(String.format(USER_FEED_ENDPOINT, userId, maxPosts));
         HttpRequest request = baseRequest(uri, "https://www.instagram.com/" + username + "/")
                 .GET()
                 .build();
 
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithBackoff(request);
             if (response.statusCode() == 404) {
                 return List.of();
             }
@@ -262,6 +304,7 @@ public class InstagramService {
                     posts.add(post);
                 }
             }
+            cacheUserPosts(userId, posts);
             return posts;
         } catch (Exception ignored) {
             return List.of();
@@ -653,7 +696,7 @@ public class InstagramService {
                 .GET()
                 .build();
         try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            HttpResponse<String> response = sendWithBackoff(request);
             if (response.statusCode() == 404) {
                 return null;
             }
@@ -837,31 +880,209 @@ public class InstagramService {
         return trimmed.trim();
     }
 
+    private JsonNode getCachedUserNode(String userId) {
+        if (userNodeCache == null) {
+            return null;
+        }
+        return userNodeCache.get(userId);
+    }
+
+    private void cacheUserNode(String userId, JsonNode user) {
+        if (userNodeCache == null || user == null) {
+            return;
+        }
+        userNodeCache.put(userId, user);
+    }
+
+    private List<InstagramPost> getCachedUserPosts(String userId) {
+        if (userPostsCache == null) {
+            return null;
+        }
+        return userPostsCache.get(userId);
+    }
+
+    private void cacheUserPosts(String userId, List<InstagramPost> posts) {
+        if (userPostsCache == null || posts == null) {
+            return;
+        }
+        userPostsCache.put(userId, posts);
+    }
+
     private HttpRequest.Builder baseRequest(URI uri, String referer) {
-        return HttpRequest.newBuilder(uri)
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                 .timeout(java.time.Duration.ofSeconds(30))
                 .header("User-Agent", DEFAULT_USER_AGENT)
                 .header("Accept", "application/json, text/plain, */*")
                 .header("X-Requested-With", "XMLHttpRequest")
                 .header("X-IG-App-ID", WEB_APP_ID)
                 .header("Referer", referer);
+        if (!sessionId.isBlank()) {
+            builder.header("Cookie", "sessionid=" + sessionId);
+        }
+        return builder;
+    }
+
+    private HttpResponse<String> sendWithBackoff(HttpRequest request) throws Exception {
+        int attempt = 0;
+        int maxAttempts = httpMaxRetries + 1;
+        while (true) {
+            waitForCooldown();
+            HttpResponse<String> response;
+            boolean acquired = false;
+            try {
+                httpRateLimiter.acquire();
+                acquired = true;
+                response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            } finally {
+                if (acquired) {
+                    httpRateLimiter.release();
+                }
+            }
+            int status = response.statusCode();
+            if (status != 429 && status < 500) {
+                consecutive429.set(0);
+                return response;
+            }
+            boolean is429 = status == 429;
+            if (is429) {
+                int streak = consecutive429.incrementAndGet();
+                if (httpCircuitBreakerThreshold > 0 && streak >= httpCircuitBreakerThreshold) {
+                    applyCooldown(httpCircuitBreakerCooldownMs);
+                }
+            } else {
+                consecutive429.set(0);
+            }
+            if (attempt >= httpMaxRetries) {
+                return response;
+            }
+            String retryAfterHeader = response.headers().firstValue("Retry-After").orElse("");
+            long retryAfterMs = InstagramHttpBackoffPolicy.parseRetryAfterMs(retryAfterHeader);
+            long delayMs = InstagramHttpBackoffPolicy.computeDelayMs(
+                    retryAfterHeader,
+                    attempt,
+                    httpBackoffMs,
+                    httpMaxBackoffMs);
+            if (is429 && delayMs < 1000) {
+                delayMs = 1000;
+            }
+            if (is429) {
+                LOGGER.warn(
+                        "Instagram 429 rate limit (endpoint={}, retryCount={}, waitMs={}, retryAfter={})",
+                        request.uri(),
+                        attempt + 1,
+                        delayMs,
+                        retryAfterMs > 0);
+            }
+            applyCooldown(delayMs);
+            attempt += 1;
+        }
+    }
+
+    private void waitForCooldown() {
+        long now = System.currentTimeMillis();
+        long until = httpCooldownUntil.get();
+        if (until > now) {
+            sleepMillis(until - now);
+        }
+    }
+
+    private void applyCooldown(long delayMs) {
+        if (delayMs <= 0) {
+            return;
+        }
+        long target = System.currentTimeMillis() + delayMs;
+        httpCooldownUntil.updateAndGet(current -> Math.max(current, target));
+    }
+
+    private static final class InstagramHttpRateLimiter {
+        private final Semaphore semaphore;
+        private final long minIntervalMs;
+        private final Object intervalLock = new Object();
+        private long lastRequestAt;
+
+        private InstagramHttpRateLimiter(int maxConcurrency, long minIntervalMs) {
+            this.semaphore = new Semaphore(Math.max(1, maxConcurrency), true);
+            this.minIntervalMs = Math.max(0, minIntervalMs);
+        }
+
+        private void acquire() throws InterruptedException {
+            semaphore.acquire();
+            if (minIntervalMs <= 0) {
+                return;
+            }
+            try {
+                synchronized (intervalLock) {
+                    long now = System.currentTimeMillis();
+                    long waitMs = lastRequestAt + minIntervalMs - now;
+                    if (waitMs > 0) {
+                        Thread.sleep(waitMs);
+                    }
+                    lastRequestAt = System.currentTimeMillis();
+                }
+            } catch (InterruptedException exception) {
+                semaphore.release();
+                throw exception;
+            }
+        }
+
+        private void release() {
+            semaphore.release();
+        }
+    }
+
+    private static final class SimpleTtlCache<K, V> {
+        private final long ttlMs;
+        private final ConcurrentHashMap<K, Entry<V>> entries = new ConcurrentHashMap<>();
+
+        private SimpleTtlCache(long ttlMs) {
+            this.ttlMs = ttlMs;
+        }
+
+        private V get(K key) {
+            Entry<V> entry = entries.get(key);
+            if (entry == null) {
+                return null;
+            }
+            if (entry.expiresAt <= System.currentTimeMillis()) {
+                entries.remove(key, entry);
+                return null;
+            }
+            return entry.value;
+        }
+
+        private void put(K key, V value) {
+            if (value == null) {
+                return;
+            }
+            long expiresAt = System.currentTimeMillis() + ttlMs;
+            entries.put(key, new Entry<>(value, expiresAt));
+        }
+
+        private static final class Entry<V> {
+            private final V value;
+            private final long expiresAt;
+
+            private Entry(V value, long expiresAt) {
+                this.value = value;
+                this.expiresAt = expiresAt;
+            }
+        }
+    }
+
+    private void sleepMillis(long delayMs) {
+        if (delayMs <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private HttpClient buildHttpClient() {
-        CookieManager cookieManager = new CookieManager();
-        cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_ALL);
-        if (!sessionId.isBlank()) {
-            CookieStore store = cookieManager.getCookieStore();
-            HttpCookie cookie = new HttpCookie("sessionid", sessionId);
-            cookie.setDomain(".instagram.com");
-            cookie.setPath("/");
-            cookie.setSecure(true);
-            cookie.setHttpOnly(true);
-            store.add(URI.create("https://www.instagram.com"), cookie);
-        }
         return HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
-                .cookieHandler(cookieManager)
                 .build();
     }
 
