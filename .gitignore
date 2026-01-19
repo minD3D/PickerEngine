@@ -43,3 +43,4 @@ scripts/deploy_ec2.sh
 *.pem
 .env.local
 src/main/resources/application-secrets.properties
+resources/application-secrets.properties
