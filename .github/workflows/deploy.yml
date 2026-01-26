@@ -45,6 +45,6 @@ jobs:
               "aws s3 cp s3://pickerengine-deploy/app.jar /home/ubuntu/app/app.jar",
               "ls -lh /home/ubuntu/app/app.jar",
               "sudo pkill -f app.jar || true",
-              "nohup env RDS_PASSWORD=\"${{ secrets.RDS_PASSWORD }}\" IG_SESSIONID=\"${{ secrets.IG_SESSIONID }}\" OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" java -jar /home/ubuntu/app/app.jar > /home/ubuntu/app.log 2>&1 &"
+              "nohup env RDS_PASSWORD=\"${{ secrets.RDS_PASSWORD }}\" IG_SESSIONID=\"${{ secrets.IG_SESSIONID }}\" OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\" CORS_ALLOWED_ORIGINS=\"${{ vars.CORS_ALLOWED_ORIGINS }}\" java -jar /home/ubuntu/app/app.jar > /home/ubuntu/app.log 2>&1 &"
             ]' \
             --region ap-northeast-2
